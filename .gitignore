@@ -1,0 +1,5 @@
+node_modules/
+.env
+data/tickets.json
+data/ticket-counter.json
+data/ticket-meta.json

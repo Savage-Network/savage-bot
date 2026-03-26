@@ -1,0 +1,23 @@
+{
+  "name": "savagemc-discord-bot",
+  "version": "1.0.0",
+  "description": "Bot SavageMC — tickets, status Minecraft na presence e voz fixa",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "register": "node register.js",
+    "registrar-comandos": "node register.js",
+    "deploy-commands": "node register.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@discordjs/builders": "^1.14.0",
+    "@discordjs/voice": "^0.18.0",
+    "opusscript": "^0.1.1",
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.7",
+    "minecraft-server-util": "^5.4.4"
+  }
+}
