@@ -68,9 +68,10 @@ module.exports = {
     return v !== '0' && v !== 'false' && v !== 'no';
   },
   voiceChannelId: () => opt('VOICE_CHANNEL_ID') || null,
+  /** Revalidação periódica da ligação à voz (ms). Mín. 5s. */
   voiceReconnectIntervalMs: () => {
-    const n = parseInt(opt('VOICE_RECONNECT_INTERVAL_MS', '120000'), 10);
-    return Number.isFinite(n) && n >= 30000 ? n : 120000;
+    const n = parseInt(opt('VOICE_RECONNECT_INTERVAL_MS', '15000'), 10);
+    return Number.isFinite(n) && n >= 5000 ? n : 15000;
   },
   /** Canal de texto onde o painel de tickets deve ser publicado (vazio = qualquer canal). */
   ticketPanelChannelId: () => pick('ticketPanelChannelId', 'TICKET_PANEL_CHANNEL_ID') || null,
