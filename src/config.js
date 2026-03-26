@@ -34,7 +34,7 @@ function pick(key, envKey, fallback = '') {
 function req(name) {
   const v = process.env[name];
   if (!v || !String(v).trim()) {
-    throw new Error(`Variável de ambiente obrigatória em falta: ${name}`);
+    throw new Error(`Variável de ambiente obrigatória ausente: ${name}`);
   }
   return String(v).trim();
 }
@@ -68,10 +68,10 @@ module.exports = {
     return v !== '0' && v !== 'false' && v !== 'no';
   },
   voiceChannelId: () => opt('VOICE_CHANNEL_ID') || null,
-  /** Revalidação periódica da ligação à voz (ms). Mín. 5s. */
+  /** Intervalo só para checar se o bot ainda está no canal (não força reconexão). Mín. 5s. */
   voiceReconnectIntervalMs: () => {
-    const n = parseInt(opt('VOICE_RECONNECT_INTERVAL_MS', '15000'), 10);
-    return Number.isFinite(n) && n >= 5000 ? n : 15000;
+    const n = parseInt(opt('VOICE_RECONNECT_INTERVAL_MS', '30000'), 10);
+    return Number.isFinite(n) && n >= 5000 ? n : 30000;
   },
   /** Canal de texto onde o painel de tickets deve ser publicado (vazio = qualquer canal). */
   ticketPanelChannelId: () => pick('ticketPanelChannelId', 'TICKET_PANEL_CHANNEL_ID') || null,
@@ -80,7 +80,7 @@ module.exports = {
     const v = pick('ticketCategoryId', 'TICKET_CATEGORY_ID');
     if (!v) {
       throw new Error(
-        'Define ticketCategoryId em config.json (ou TICKET_CATEGORY_ID no ambiente).'
+        'Defina ticketCategoryId em config.json (ou TICKET_CATEGORY_ID no ambiente).'
       );
     }
     return v;

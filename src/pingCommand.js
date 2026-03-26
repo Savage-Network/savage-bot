@@ -2,6 +2,7 @@
 
 const { EmbedBuilder, MessageFlags } = require('discord.js');
 const config = require('./config');
+const { footer } = require('./embedCopyright');
 
 async function handlePing(interaction) {
   const t0 = Date.now();
@@ -16,7 +17,7 @@ async function handlePing(interaction) {
       { name: 'Discord API', value: `~${apiMs} ms`, inline: true },
       { name: 'Gateway (WebSocket)', value: `${ws >= 0 ? ws : '—'} ms`, inline: true }
     )
-    .setFooter({ text: 'Valores aproximados' })
+    .setFooter(footer({ text: 'Valores aproximados' }))
     .setTimestamp();
 
   await interaction.editReply({ embeds: [embed] });

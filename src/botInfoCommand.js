@@ -2,6 +2,7 @@
 
 const { EmbedBuilder, MessageFlags } = require('discord.js');
 const config = require('./config');
+const { footer } = require('./embedCopyright');
 
 const pkg = require('../package.json');
 
@@ -40,10 +41,10 @@ async function handleBotInfo(interaction, startedAtMs) {
         name: 'Servidor',
         value: guild
           ? `${guild.name} · ${guild.memberCount} membros`
-          : '_DM / sem guild_',
+          : '_DM / sem servidor_',
       }
     )
-    .setFooter({ text: 'Node.js ' + process.version })
+    .setFooter(footer({ text: 'Node.js ' + process.version }))
     .setTimestamp();
 
   await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });

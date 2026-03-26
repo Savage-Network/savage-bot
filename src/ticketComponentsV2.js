@@ -37,7 +37,7 @@ function buildTicketPanel({ selectCustomId, accentColor, guildName, guildIconUrl
 
   const select = new StringSelectMenuBuilder()
     .setCustomId(selectCustomId)
-    .setPlaceholder('Escolhe o tipo de ticket')
+    .setPlaceholder('Escolha o tipo de ticket')
     .addOptions(
       new StringSelectMenuOptionBuilder()
         .setLabel('Loja')
@@ -67,9 +67,9 @@ function buildTicketPanel({ selectCustomId, accentColor, guildName, guildIconUrl
         `# ${name}\n**Central de suporte**`
       ),
       new TextDisplayBuilder().setContent(
-        'Escolhe abaixo o **tipo de ticket**. Vais ser pedido o teu **nick no Minecraft**.\n\n' +
-          'Em **Denúncia** também pedimos o nick de **quem estás a denunciar**.\n\n' +
-          '- Canal privado só para ti e a staff\n' +
+        'Escolha abaixo o **tipo de ticket**. Será pedido o seu **nick no Minecraft**.\n\n' +
+          'Em **Denúncia** também pedimos o nick de **quem você está denunciando**.\n\n' +
+          '- Canal privado só para você e a staff\n' +
           '- Resposta o mais rápido possível'
       )
     )
@@ -136,9 +136,9 @@ function buildTicketWelcome({
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
         `${mentionLine}\n\n${info}\n\n` +
-          'Explica o teu caso com o máximo de detalhe.\n' +
-          '**Staff:** usa **Assumir ticket** para marcar que estás a tratar disto; **Fechar ticket** quando estiver resolvido.\n\n' +
-          '*SavageMC · sistema de suporte*'
+          'Explique seu caso com o máximo de detalhes.\n' +
+          '**Staff:** use **Assumir ticket** para marcar que está atendendo; **Fechar ticket** quando estiver resolvido.\n\n' +
+          '*SavageMC · sistema de suporte · © SavageMC*'
       )
     )
     .addSeparatorComponents(new SeparatorBuilder().setDivider(true))

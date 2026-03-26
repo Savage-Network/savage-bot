@@ -80,7 +80,7 @@ function createClient() {
       }
     } catch (err) {
       console.error('[interação]', err);
-      const msg = 'Ocorreu um erro ao processar o pedido.';
+      const msg = 'Ocorreu um erro ao processar a solicitação.';
       if (interaction.deferred || interaction.replied) {
         await interaction
           .followUp({ content: msg, flags: MessageFlags.Ephemeral })
@@ -119,15 +119,15 @@ async function registerSlashCommands() {
       .toJSON(),
     new SlashCommandBuilder()
       .setName('status')
-      .setDescription('Mostra o estado do servidor Minecraft SavageMC')
+      .setDescription('Mostra o status do servidor Minecraft SavageMC')
       .toJSON(),
     new SlashCommandBuilder()
       .setName('servidor')
-      .setDescription('Informação sobre este servidor Discord')
+      .setDescription('Informações sobre este servidor Discord')
       .toJSON(),
     new SlashCommandBuilder()
       .setName('minecraft')
-      .setDescription('Endereço e dados rápidos para ligar ao SavageMC')
+      .setDescription('Endereço e dados rápidos para conectar ao SavageMC')
       .toJSON(),
     new SlashCommandBuilder()
       .setName('botinfo')
@@ -139,16 +139,16 @@ async function registerSlashCommands() {
       .addSubcommand((s) =>
         s
           .setName('painel')
-          .setDescription('Publica o painel de abertura de tickets (staff)')
+          .setDescription('Publicar o painel de abertura de tickets (staff)')
       )
       .addSubcommand((s) =>
         s
           .setName('fechar')
-          .setDescription('Fecha o ticket atual e gera transcrição')
+          .setDescription('Fechar o ticket atual e gerar transcrição')
           .addStringOption((o) =>
             o
               .setName('motivo')
-              .setDescription('Motivo do fecho (opcional — logs e DM ao dono)')
+              .setDescription('Motivo do fechamento (opcional — logs e DM ao dono)')
               .setRequired(false)
               .setMaxLength(500)
           )
@@ -156,54 +156,54 @@ async function registerSlashCommands() {
       .addSubcommand((s) =>
         s
           .setName('adicionar')
-          .setDescription('Adiciona um membro ao ticket (staff)')
+          .setDescription('Adicionar um membro ao ticket (staff)')
           .addUserOption((o) =>
-            o.setName('membro').setDescription('Utilizador').setRequired(true)
+            o.setName('membro').setDescription('Usuário').setRequired(true)
           )
       )
       .addSubcommand((s) =>
         s
           .setName('remover')
-          .setDescription('Remove um membro do ticket (staff)')
+          .setDescription('Remover um membro do ticket (staff)')
           .addUserOption((o) =>
-            o.setName('membro').setDescription('Utilizador').setRequired(true)
+            o.setName('membro').setDescription('Usuário').setRequired(true)
           )
       )
       .addSubcommand((s) =>
         s
           .setName('assumir')
-          .setDescription('Staff: indica que assumiste este ticket')
+          .setDescription('Staff: marcar que você assumiu este ticket')
       )
       .addSubcommand((s) =>
         s
           .setName('info')
-          .setDescription('Mostra dados deste ticket (só tu vês)')
+          .setDescription('Mostrar dados deste ticket (só você vê)')
       )
       .addSubcommand((s) =>
         s
           .setName('fixar')
-          .setDescription('Staff: fixa a mensagem de boas-vindas no topo')
+          .setDescription('Staff: fixar a mensagem de boas-vindas no topo')
       )
       .addSubcommand((s) =>
         s
           .setName('transferir')
-          .setDescription('Staff: passa a responsabilidade do ticket a outro membro')
+          .setDescription('Staff: passar a responsabilidade do ticket a outro membro')
           .addUserOption((o) =>
             o
               .setName('staff')
-              .setDescription('Membro da equipa que vai assumir')
+              .setDescription('Membro da equipe que vai assumir')
               .setRequired(true)
           )
       )
       .addSubcommand((s) =>
         s
           .setName('transcricao')
-          .setDescription('Staff: transcrição sem fechar o ticket (só tu vês)')
+          .setDescription('Staff: transcrição sem fechar o ticket (só você vê)')
       )
       .addSubcommand((s) =>
         s
           .setName('renomear')
-          .setDescription('Staff: altera o nome do canal do ticket')
+          .setDescription('Staff: alterar o nome do canal do ticket')
           .addStringOption((o) =>
             o
               .setName('nome')
@@ -215,12 +215,12 @@ async function registerSlashCommands() {
       .addSubcommand((s) =>
         s
           .setName('listar')
-          .setDescription('Staff: lista tickets abertos na categoria')
+          .setDescription('Staff: listar tickets abertos na categoria')
       )
       .addSubcommand((s) =>
         s
           .setName('nota')
-          .setDescription('Staff: publica uma nota no canal do ticket')
+          .setDescription('Staff: publicar uma nota no canal do ticket')
           .addStringOption((o) =>
             o
               .setName('texto')
@@ -240,10 +240,10 @@ async function registerSlashCommands() {
     await rest.put(Routes.applicationGuildCommands(clientId, guildId), {
       body: commands,
     });
-    console.log(`Comandos registados no servidor (guild) ${guildId}.`);
+    console.log(`Comandos registrados no servidor (guild) ${guildId}.`);
   } else {
     await rest.put(Routes.applicationCommands(clientId), { body: commands });
-    console.log('Comandos registados globalmente (até 1h a propagar).');
+    console.log('Comandos registrados globalmente (até ~1 h para propagar).');
   }
 }
 

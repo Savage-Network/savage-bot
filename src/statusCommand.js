@@ -3,6 +3,7 @@
 const { EmbedBuilder } = require('discord.js');
 const config = require('./config');
 const { fetchMcStatus } = require('./mcPresence');
+const { footer } = require('./embedCopyright');
 
 function textoJogadores(online, max) {
   const o = Math.max(0, Math.floor(Number(online)) || 0);
@@ -38,7 +39,7 @@ async function handleStatus(interaction) {
     }
     if (!sampleBlock) {
       sampleBlock =
-        '_Nenhuma amostra (servidor pode não enviar lista de nomes)._';
+        '_Nenhuma amostra (o servidor pode não enviar lista de nomes)._';
     }
 
     const embed = new EmbedBuilder()
@@ -53,6 +54,7 @@ async function handleStatus(interaction) {
         name: 'Endereço',
         value: `\`${host}\``,
       })
+      .setFooter(footer())
       .setTimestamp();
 
     await interaction.editReply({ embeds: [embed] });
@@ -63,10 +65,11 @@ async function handleStatus(interaction) {
     .setColor(0xed4245)
     .setTitle('SavageMC · offline ou inacessível')
     .setDescription(
-      `Não foi possível obter estado em \`${host}\`.\n\n` +
-        'Verifica **MC_HOST** e **MC_ENABLE_SRV** (e **MC_PORT** no ambiente do bot se o servidor não usar SRV). ' +
-        'Com **DEBUG_MC=1** vês o erro no log do bot.'
+      `Não foi possível obter o status em \`${host}\`.\n\n` +
+        'Verifique **MC_HOST** e **MC_ENABLE_SRV** (e **MC_PORT** no ambiente do bot se o servidor não usar SRV). ' +
+        'Com **DEBUG_MC=1** você vê o erro no log do bot.'
     )
+    .setFooter(footer())
     .setTimestamp();
 
   await interaction.editReply({ embeds: [embedOff] });

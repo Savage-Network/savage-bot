@@ -2,12 +2,13 @@
 
 /**
  * Logs de atividade do servidor para um canal de texto.
- * Requer no servidor: **Ver registo de auditoria** (View Audit Log) para `guildAuditLogEntryCreate`.
+ * Requer no servidor: **Ver registro de auditoria** (View Audit Log) para `guildAuditLogEntryCreate`.
  */
 
 const { EmbedBuilder } = require('discord.js');
 const { AuditLogEvent } = require('discord-api-types/v10');
 const config = require('./config');
+const { footer } = require('./embedCopyright');
 
 const LOG_COLOR_AUDIT = 0x5865f2;
 const LOG_COLOR_MSG = 0x57f287;
@@ -119,7 +120,6 @@ function buildAuditEmbed(entry, guild) {
       { name: 'Executor', value: truncate(exec, MAX_FIELD), inline: true },
       { name: 'Alvo', value: truncate(formatTarget(entry), MAX_FIELD), inline: true }
     )
-    .setFooter({ text: guild.name })
     .setTimestamp();
 
   const ch = formatChanges(entry.changes);
@@ -134,12 +134,13 @@ function buildAuditEmbed(entry, guild) {
     embed.addFields({ name: 'Motivo', value: truncate(entry.reason, MAX_FIELD) });
   }
 
+  embed.setFooter(footer({ text: guild.name }));
   return embed;
 }
 
 function startDiscordLogging(client) {
   if (!config.discordLogChannelId()) {
-    console.log('[discordLog] Desativado (define DISCORD_LOG_CHANNEL_ID ou discordLogChannelId).');
+    console.log('[discordLog] Desativado (defina DISCORD_LOG_CHANNEL_ID ou discordLogChannelId).');
     return;
   }
 
@@ -163,6 +164,7 @@ function startDiscordLogging(client) {
           inline: true,
         })
         .setThumbnail(member.user.displayAvatarURL({ size: 128 }))
+        .setFooter(footer())
         .setTimestamp()
     );
   });
@@ -184,6 +186,7 @@ function startDiscordLogging(client) {
           },
           { name: 'Cargos', value: truncate(member.roles.cache.map((r) => r.name).join(', ') || '—', MAX_FIELD) }
         )
+        .setFooter(footer())
         .setTimestamp()
     );
   });
@@ -205,10 +208,11 @@ function startDiscordLogging(client) {
         })
         .addFields(
           { name: 'Canal', value: `${newMsg.channel}`, inline: true },
-          { name: 'ID mensagem', value: `\`${newMsg.id}\``, inline: true },
+          { name: 'ID da mensagem', value: `\`${newMsg.id}\``, inline: true },
           { name: 'Antes', value: truncate(oldC, MAX_FIELD) },
           { name: 'Depois', value: truncate(newC, MAX_FIELD) }
         )
+        .setFooter(footer())
         .setTimestamp()
     );
   });
@@ -220,7 +224,7 @@ function startDiscordLogging(client) {
     enqueueSend(client, () =>
       new EmbedBuilder()
         .setColor(LOG_COLOR_MSG_DEL)
-        .setTitle('🗑️ Mensagem apagada')
+        .setTitle('🗑️ Mensagem excluída')
         .setAuthor({
           name: message.author?.tag || 'Desconhecido',
           iconURL: message.author?.displayAvatarURL({ size: 64 }) ?? undefined,
@@ -230,6 +234,7 @@ function startDiscordLogging(client) {
           { name: 'ID', value: `\`${message.id}\``, inline: true },
           { name: 'Conteúdo', value: truncate(content, MAX_FIELD) }
         )
+        .setFooter(footer())
         .setTimestamp()
     );
   });
@@ -240,8 +245,9 @@ function startDiscordLogging(client) {
     enqueueSend(client, () =>
       new EmbedBuilder()
         .setColor(LOG_COLOR_MSG_DEL)
-        .setTitle('🗑️ Mensagens apagadas em massa')
+        .setTitle('🗑️ Mensagens excluídas em massa')
         .setDescription(`**${messages.size}** mensagens em ${first.channel}`)
+        .setFooter(footer())
         .setTimestamp()
     );
   });
@@ -276,6 +282,7 @@ function startDiscordLogging(client) {
         .setColor(LOG_COLOR_VOICE)
         .setTitle(title)
         .setDescription(`**${uid}** (\`${member.id}\`)\n${detail}`)
+        .setFooter(footer())
         .setTimestamp()
     );
   });
@@ -293,9 +300,10 @@ function startDiscordLogging(client) {
         .setTitle('⌨️ Comando')
         .setDescription(`**${full}**`)
         .addFields(
-          { name: 'Utilizador', value: `${user} (\`${interaction.user.id}\`)`, inline: true },
+          { name: 'Usuário', value: `${user} (\`${interaction.user.id}\`)`, inline: true },
           { name: 'Canal', value: `${interaction.channel || '—'}`, inline: true }
         )
+        .setFooter(footer())
         .setTimestamp()
     );
   });
@@ -317,6 +325,7 @@ function startDiscordLogging(client) {
             { name: 'Canal', value: `${message.channel}`, inline: true },
             { name: 'Texto', value: truncate(text, MAX_FIELD) }
           )
+          .setFooter(footer())
           .setTimestamp()
       );
     });
@@ -336,6 +345,7 @@ function startDiscordLogging(client) {
           .setDescription(
             `${user.tag} → ${emoji} em ${reaction.message.channel}\nMensagem: \`${reaction.message.id}\``
           )
+          .setFooter(footer())
           .setTimestamp()
       );
     });
@@ -352,6 +362,7 @@ function startDiscordLogging(client) {
           .setDescription(
             `${user.tag} → ${emoji} em ${reaction.message.channel}\nMensagem: \`${reaction.message.id}\``
           )
+          .setFooter(footer())
           .setTimestamp()
       );
     });

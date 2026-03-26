@@ -14,6 +14,7 @@ const {
 const config = require('./config');
 const storage = require('./storage');
 const { buildTicketPanel, buildTicketWelcome } = require('./ticketComponentsV2');
+const { footer } = require('./embedCopyright');
 
 const BTN_CLOSE = 'savage_ticket_close';
 const BTN_ASSUME = 'savage_ticket_assume';
@@ -76,7 +77,7 @@ async function runAssumeTicket(interaction) {
   if (!isTicketChannel(interaction.channel)) {
     return interaction.reply({
       flags: MessageFlags.Ephemeral,
-      content: 'Isto só funciona dentro de um canal de ticket.',
+      content: 'Isso só funciona dentro de um canal de ticket.',
     });
   }
   if (!isStaff(interaction.member)) {
@@ -95,15 +96,15 @@ async function runAssumeTicket(interaction) {
       .setColor(config.ticketEmbedColor())
       .setTitle('Ticket assumido')
       .setDescription(`${interaction.user} assumiu este ticket e vai acompanhá-lo.`)
-      .setFooter({ text: interaction.user.tag })
+      .setFooter(footer({ text: interaction.user.tag }))
       .setTimestamp();
     await interaction.channel.send({ embeds: [embed] });
   }
   return interaction.reply({
     flags: MessageFlags.Ephemeral,
     content: metaAfter?.welcomeMessageId
-      ? 'Assunção registada. A mensagem de boas-vindas mostra **Assumido por** com o teu nome.'
-      : 'Assunção registada no canal (ticket antigo sem painel editável).',
+      ? 'Assunção registrada. A mensagem de boas-vindas mostra **Assumido por** com seu nome.'
+      : 'Assunção registrada no canal (ticket antigo sem painel editável).',
   });
 }
 
@@ -112,7 +113,7 @@ async function runTicketInfo(interaction) {
   if (!isTicketChannel(interaction.channel)) {
     return interaction.reply({
       flags: MessageFlags.Ephemeral,
-      content: 'Usa este comando dentro de um canal de ticket.',
+      content: 'Use este comando dentro de um canal de ticket.',
     });
   }
   const meta = storage.getTicketMeta(interaction.channel.id);
@@ -155,6 +156,7 @@ async function runTicketInfo(interaction) {
       { name: 'Nick Minecraft', value: nick, inline: true },
       { name: 'Denunciado (nick)', value: reported, inline: true }
     )
+    .setFooter(footer())
     .setTimestamp();
 
   return interaction.reply({
@@ -168,13 +170,13 @@ async function runPinWelcome(interaction) {
   if (!isTicketChannel(interaction.channel)) {
     return interaction.reply({
       flags: MessageFlags.Ephemeral,
-      content: 'Usa este comando dentro de um canal de ticket.',
+      content: 'Use este comando dentro de um canal de ticket.',
     });
   }
   if (!isStaff(interaction.member)) {
     return interaction.reply({
       flags: MessageFlags.Ephemeral,
-      content: 'Apenas staff pode fixar a mensagem de boas-vindas.',
+      content: 'Apenas a staff pode fixar a mensagem de boas-vindas.',
     });
   }
   const meta = storage.getTicketMeta(interaction.channel.id);
@@ -182,7 +184,7 @@ async function runPinWelcome(interaction) {
     return interaction.reply({
       flags: MessageFlags.Ephemeral,
       content:
-        'Não há mensagem de boas-vindas registada (ticket antigo). Abre um ticket novo para usar esta função.',
+        'Não há mensagem de boas-vindas registrada (ticket antigo). Abra um ticket novo para usar esta função.',
     });
   }
   const msg = await interaction.channel.messages
@@ -195,13 +197,13 @@ async function runPinWelcome(interaction) {
     });
   }
   try {
-    await msg.pin('Boas-vindas do ticket fixadas pela staff');
+    await msg.pin('Boas-vindas do ticket fixadas pela equipe');
   } catch (e) {
     console.error('[ticket fixar]', e);
     return interaction.reply({
       flags: MessageFlags.Ephemeral,
       content:
-        'Não foi possível fixar. Confirma que o bot tem **Gerir mensagens** neste canal.',
+        'Não foi possível fixar. Confirme que o bot tem **Gerenciar mensagens** neste canal.',
     });
   }
   return interaction.reply({
@@ -215,7 +217,7 @@ async function runTransferTicket(interaction) {
   if (!isTicketChannel(interaction.channel)) {
     return interaction.reply({
       flags: MessageFlags.Ephemeral,
-      content: 'Isto só funciona dentro de um canal de ticket.',
+      content: 'Isso só funciona dentro de um canal de ticket.',
     });
   }
   if (!isStaff(interaction.member)) {
@@ -228,14 +230,14 @@ async function runTransferTicket(interaction) {
   if (target.id === interaction.user.id) {
     return interaction.reply({
       flags: MessageFlags.Ephemeral,
-      content: 'Escolhe outro membro da equipa para transferir.',
+      content: 'Escolha outro membro da equipe para transferir.',
     });
   }
   const targetMember = await interaction.guild.members.fetch(target.id).catch(() => null);
   if (!targetMember || !isStaff(targetMember)) {
     return interaction.reply({
       flags: MessageFlags.Ephemeral,
-      content: 'O destinatário tem de ser staff (cargo ou administrador).',
+      content: 'O destinatário precisa ser staff (cargo ou administrador).',
     });
   }
   storage.upsertTicketMeta(interaction.channel.id, {
@@ -295,8 +297,8 @@ async function dmTranscriptToOwner(client, ownerId, transcript, closeReason) {
   const u = await client.users.fetch(ownerId).catch(() => null);
   if (!u) return;
   const msg = closeReason
-    ? `O teu ticket foi fechado.\n**Motivo:** ${closeReason}\nSegue a transcrição.`
-    : 'O teu ticket foi fechado. Segue a transcrição.';
+    ? `Seu ticket foi fechado.\n**Motivo:** ${closeReason}\nEm anexo a transcrição.`
+    : 'Seu ticket foi fechado. Em anexo a transcrição.';
   await u
     .send({
       content: msg,
@@ -483,7 +485,7 @@ async function handleSelectMenu(interaction) {
     new ActionRowBuilder().addComponents(
       new TextInputBuilder()
         .setCustomId('minecraft_nick')
-        .setLabel('O teu nick no Minecraft')
+        .setLabel('Seu nick no Minecraft')
         .setStyle(TextInputStyle.Short)
         .setPlaceholder('Ex.: henqks')
         .setRequired(true)
@@ -497,9 +499,9 @@ async function handleSelectMenu(interaction) {
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
           .setCustomId('reported_nick')
-          .setLabel('Nick de quem denuncias')
+          .setLabel('Nick de quem você denuncia')
           .setStyle(TextInputStyle.Short)
-          .setPlaceholder('Nick do jogador que quer denunciar')
+          .setPlaceholder('Nick do jogador denunciado')
           .setRequired(true)
           .setMinLength(3)
           .setMaxLength(16)
@@ -517,7 +519,7 @@ async function handleModalSubmit(interaction) {
   if (!interaction.guild) {
     return interaction.reply({
       flags: MessageFlags.Ephemeral,
-      content: 'Este pedido só pode ser usado num servidor.',
+      content: 'Esta ação só pode ser usada em um servidor.',
     });
   }
 
@@ -534,13 +536,13 @@ async function handleModalSubmit(interaction) {
   if (minecraftNick.length < 3) {
     return interaction.reply({
       flags: MessageFlags.Ephemeral,
-      content: 'Indica um nick no Minecraft válido (mínimo 3 caracteres).',
+      content: 'Informe um nick no Minecraft válido (mínimo 3 caracteres).',
     });
   }
   if (ticketType === 'denuncia' && (!reportedNick || reportedNick.length < 3)) {
     return interaction.reply({
       flags: MessageFlags.Ephemeral,
-      content: 'Indica o nick de quem estás a denunciar (mínimo 3 caracteres).',
+      content: 'Informe o nick de quem você está denunciando (mínimo 3 caracteres).',
     });
   }
 
@@ -551,7 +553,7 @@ async function handleModalSubmit(interaction) {
     const ch = await interaction.guild.channels.fetch(existingId).catch(() => null);
     if (ch && isTicketChannel(ch)) {
       return interaction.editReply({
-        content: `Já tens um ticket aberto: ${ch.toString()}`,
+        content: `Você já tem um ticket aberto: ${ch.toString()}`,
       });
     }
     storage.clearUserTicket(interaction.user.id);
@@ -571,7 +573,7 @@ async function handleModalSubmit(interaction) {
     console.error(e);
     return interaction.editReply({
       content:
-        'Não foi possível criar o ticket. Verifica permissões do bot na categoria e no servidor.',
+        'Não foi possível criar o ticket. Verifique as permissões do bot na categoria e no servidor.',
     });
   }
 }
@@ -581,7 +583,7 @@ async function handleCloseButton(interaction) {
   if (!isTicketChannel(interaction.channel)) {
     return interaction.reply({
       flags: MessageFlags.Ephemeral,
-      content: 'Este comando só funciona dentro de um canal de ticket.',
+      content: 'Este comando só funciona em um canal de ticket.',
     });
   }
 
@@ -592,7 +594,7 @@ async function handleCloseButton(interaction) {
   if (!can) {
     return interaction.reply({
       flags: MessageFlags.Ephemeral,
-      content: 'Não tens permissão para fechar este ticket.',
+      content: 'Você não tem permissão para fechar este ticket.',
     });
   }
 
@@ -617,7 +619,7 @@ async function handleSlash(interaction) {
       return interaction.reply({
         flags: MessageFlags.Ephemeral,
         content:
-          'O painel de tickets só pode ser publicado no canal configurado em `config.json` (ticketPanelChannelId).',
+          'O painel de tickets só pode ser publicado no canal definido em `config.json` (ticketPanelChannelId).',
       });
     }
     const guild = interaction.guild;
@@ -646,7 +648,7 @@ async function handleSlash(interaction) {
       return interaction.reply({
         flags: MessageFlags.Ephemeral,
         content:
-          'Não foi possível enviar o painel. Confirma que o bot pode **Enviar mensagens** e **Usar componentes** neste canal.',
+          'Não foi possível enviar o painel. Confirme que o bot pode **Enviar mensagens** e **Usar componentes** neste canal.',
       });
     }
 
@@ -661,7 +663,7 @@ async function handleSlash(interaction) {
     if (!isTicketChannel(interaction.channel)) {
       return interaction.reply({
         flags: MessageFlags.Ephemeral,
-        content: 'Usa este comando dentro de um canal de ticket.',
+        content: 'Use este comando dentro de um canal de ticket.',
       });
     }
     const ownerId = storage.getUserByChannel(interaction.channel.id);
@@ -671,7 +673,7 @@ async function handleSlash(interaction) {
     if (!can) {
       return interaction.reply({
         flags: MessageFlags.Ephemeral,
-        content: 'Não tens permissão para fechar este ticket.',
+        content: 'Você não tem permissão para fechar este ticket.',
       });
     }
 
@@ -684,7 +686,7 @@ async function handleSlash(interaction) {
     await runCloseTicket(interaction, ch, g, closeReason);
     await interaction.editReply({
       content: closeReason
-        ? `Ticket fechado. Motivo registado nos logs.`
+        ? `Ticket fechado. Motivo registrado nos logs.`
         : 'Ticket fechado.',
     });
     await ch.delete('Ticket fechado').catch(() => null);
@@ -696,7 +698,7 @@ async function handleSlash(interaction) {
     if (!isTicketChannel(interaction.channel)) {
       return interaction.reply({
         flags: MessageFlags.Ephemeral,
-        content: 'Usa isto dentro de um canal de ticket.',
+        content: 'Use isto dentro de um canal de ticket.',
       });
     }
     if (!isStaff(interaction.member)) {
@@ -746,7 +748,7 @@ async function handleSlash(interaction) {
     if (!isTicketChannel(interaction.channel)) {
       return interaction.reply({
         flags: MessageFlags.Ephemeral,
-        content: 'Usa este comando dentro de um canal de ticket.',
+        content: 'Use este comando dentro de um canal de ticket.',
       });
     }
     if (!isStaff(interaction.member)) {
@@ -759,7 +761,7 @@ async function handleSlash(interaction) {
     const t = await collectTranscript(interaction.channel);
     const buf = Buffer.from(t, 'utf8');
     return interaction.editReply({
-      content: 'Transcrição até ao momento (o canal **não** foi fechado).',
+      content: 'Transcrição até o momento (o canal **não** foi fechado).',
       files: [
         new AttachmentBuilder(buf, {
           name: `transcript-${interaction.channel.name}.txt`,
@@ -773,7 +775,7 @@ async function handleSlash(interaction) {
     if (!isTicketChannel(interaction.channel)) {
       return interaction.reply({
         flags: MessageFlags.Ephemeral,
-        content: 'Usa este comando dentro de um canal de ticket.',
+        content: 'Use este comando dentro de um canal de ticket.',
       });
     }
     if (!isStaff(interaction.member)) {
@@ -789,7 +791,7 @@ async function handleSlash(interaction) {
       console.error(e);
       return interaction.reply({
         flags: MessageFlags.Ephemeral,
-        content: 'Não foi possível renomear. Verifica permissões do bot (Gerir canais).',
+        content: 'Não foi possível renomear. Verifique as permissões do bot (Gerenciar canais).',
       });
     }
     return interaction.reply({
@@ -813,8 +815,8 @@ async function handleSlash(interaction) {
     );
     const sorted = [...children.values()].sort((a, b) => a.name.localeCompare(b.name));
     const lines = sorted.slice(0, 40).map((c) => `• ${c}`);
-    const extra =
-      sorted.length > 40 ? `\n_…e mais ${sorted.length - 40}._` : '';
+    const       extra =
+      sorted.length > 40 ? `\n_… e mais ${sorted.length - 40}._` : '';
     return interaction.reply({
       flags: MessageFlags.Ephemeral,
       content:
@@ -829,7 +831,7 @@ async function handleSlash(interaction) {
     if (!isTicketChannel(interaction.channel)) {
       return interaction.reply({
         flags: MessageFlags.Ephemeral,
-        content: 'Usa este comando dentro de um canal de ticket.',
+        content: 'Use este comando dentro de um canal de ticket.',
       });
     }
     if (!isStaff(interaction.member)) {
@@ -842,9 +844,9 @@ async function handleSlash(interaction) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const embed = new EmbedBuilder()
       .setColor(0xfaa61a)
-      .setTitle('Nota da equipa')
+      .setTitle('Nota da equipe')
       .setDescription(texto)
-      .setFooter({ text: interaction.user.tag })
+      .setFooter(footer({ text: interaction.user.tag }))
       .setTimestamp();
     await interaction.channel.send({ embeds: [embed] });
     return interaction.editReply({ content: 'Nota publicada no ticket.' });

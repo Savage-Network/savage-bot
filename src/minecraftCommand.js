@@ -3,6 +3,7 @@
 const { EmbedBuilder } = require('discord.js');
 const config = require('./config');
 const { fetchMcStatus } = require('./mcPresence');
+const { footer } = require('./embedCopyright');
 
 function textoJogadores(online, max) {
   const o = Math.max(0, Math.floor(Number(online)) || 0);
@@ -11,7 +12,7 @@ function textoJogadores(online, max) {
   return String(o);
 }
 
-/** Informação rápida para ligar ao Minecraft (sem duplicar o /status completo). */
+/** Informação rápida para conectar ao Minecraft (sem duplicar o /status completo). */
 async function handleMinecraft(interaction) {
   await interaction.deferReply();
 
@@ -21,15 +22,15 @@ async function handleMinecraft(interaction) {
 
   const embed = new EmbedBuilder()
     .setColor(config.ticketEmbedColor())
-    .setTitle('SavageMC · ligar ao servidor')
+    .setTitle('SavageMC · conectar ao servidor')
     .setDescription(
       `**Endereço:**\n\`\`\`\n${addr}\n\`\`\`\n` +
-        '_Copia o texto acima para o teu cliente Minecraft (Java)._'
+        '_Copie o texto acima para o seu cliente Minecraft (Java)._'
     );
   if (s.ok) {
     embed.addFields(
       {
-        name: 'Estado',
+        name: 'Status',
         value: 'Online',
         inline: true,
       },
@@ -45,13 +46,17 @@ async function handleMinecraft(interaction) {
       }
     );
     if (s.latencyMs != null) {
-      embed.setFooter({ text: `Ping lista ~${s.latencyMs} ms` });
+      embed.setFooter(footer({ text: `Ping lista ~${s.latencyMs} ms` }));
+    } else {
+      embed.setFooter(footer());
     }
   } else {
     embed.addFields({
-      name: 'Estado',
-      value: 'Não foi possível confirmar (offline ou rede). Usa `/status` para detalhes.',
+      name: 'Status',
+      value:
+        'Não foi possível confirmar (offline ou rede). Use `/status` para detalhes.',
     });
+    embed.setFooter(footer());
   }
 
   await interaction.editReply({ embeds: [embed] });

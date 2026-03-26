@@ -2,11 +2,12 @@
 
 const { EmbedBuilder, MessageFlags } = require('discord.js');
 const config = require('./config');
+const { footer } = require('./embedCopyright');
 
 async function handleServidor(interaction) {
   if (!interaction.guild) {
     return interaction.reply({
-      content: 'Este comando só funciona num servidor.',
+      content: 'Este comando só funciona em um servidor.',
       flags: MessageFlags.Ephemeral,
     });
   }
@@ -42,6 +43,7 @@ async function handleServidor(interaction) {
         inline: true,
       }
     )
+    .setFooter(footer())
     .setTimestamp();
 
   if (owner) {

@@ -1,5 +1,10 @@
 'use strict';
 
+/**
+ * Mantém o bot no canal de voz configurado sem desligar à toa — evita reset do tempo na call.
+ * O intervalo só verifica se o membro saiu; não força nova ligação se já estiver estável.
+ */
+
 const {
   joinVoiceChannel,
   entersState,
@@ -12,6 +17,8 @@ let voiceInterval = null;
 let lastGuildId = null;
 let reconnectTimeout = null;
 let voiceListenersAttached = false;
+/** Evita várias ligações em paralelo (reconexões duplicadas resetam o tempo na call). */
+let joinInFlight = false;
 
 function scheduleReconnect(client, delayMs = 600) {
   if (reconnectTimeout) clearTimeout(reconnectTimeout);
@@ -29,6 +36,25 @@ function isJoinInProgress(conn) {
   );
 }
 
+/**
+ * Ligação já estável + bot já está no canal certo → não faz nada (preserva tempo na call).
+ */
+async function isStableInTargetChannel(client, channel) {
+  const conn = getVoiceConnection(channel.guildId);
+  if (
+    !conn ||
+    conn.joinConfig.channelId !== channel.id ||
+    conn.state.status !== VoiceConnectionStatus.Ready
+  ) {
+    return false;
+  }
+  let member = channel.guild.members.cache.get(client.user.id);
+  if (!member) {
+    member = await channel.guild.members.fetch(client.user.id).catch(() => null);
+  }
+  return member?.voice?.channelId === channel.id;
+}
+
 async function connectVoice(client) {
   const channelId = config.voiceChannelId();
   if (!channelId) return null;
@@ -40,6 +66,11 @@ async function connectVoice(client) {
   }
 
   lastGuildId = channel.guildId;
+
+  if (await isStableInTargetChannel(client, channel)) {
+    const conn = getVoiceConnection(channel.guildId);
+    return conn;
+  }
 
   const existing = getVoiceConnection(channel.guildId);
   if (existing && existing.joinConfig.channelId !== channel.id) {
@@ -91,7 +122,7 @@ async function connectVoice(client) {
 
   connection.on('stateChange', (oldState, newState) => {
     if (newState.status === VoiceConnectionStatus.Disconnected) {
-      console.warn('[voz] Desligado da voz — a reconectar…');
+      console.warn('[voz] Desconectado da voz — reconectando…');
       try {
         if (connection.state.status === VoiceConnectionStatus.Disconnected) {
           const ok = connection.rejoin();
@@ -108,6 +139,15 @@ async function connectVoice(client) {
   } catch (e) {
     console.error('[voz] Timeout ao entrar no canal:', e?.message || e);
     try {
+      const r = connection.rejoin();
+      if (r) {
+        await entersState(connection, VoiceConnectionStatus.Ready, 35_000);
+        return connection;
+      }
+    } catch {
+      /* continuar */
+    }
+    try {
       connection.destroy();
     } catch {
       /* ignore */
@@ -118,14 +158,20 @@ async function connectVoice(client) {
   return connection;
 }
 
-function tryJoin(client) {
-  connectVoice(client).catch((e) => {
+async function tryJoin(client) {
+  if (joinInFlight) return;
+  joinInFlight = true;
+  try {
+    await connectVoice(client);
+  } catch (e) {
     console.error('[voz] Falha ao ligar:', e?.message || e);
     scheduleReconnect(client, 2000);
-  });
+  } finally {
+    joinInFlight = false;
+  }
 }
 
-/** Garante que o membro do bot está no canal configurado (ex.: kick da call, move). */
+/** Só reconecta se o bot realmente não estiver no canal configurado. */
 async function ensureMemberInChannel(client) {
   const channelId = config.voiceChannelId();
   if (!channelId || !client.user) return;
@@ -139,7 +185,7 @@ async function ensureMemberInChannel(client) {
 
   if (member.voice.channelId === channelId) return;
 
-  console.warn('[voz] Bot não está no canal configurado — a voltar a ligar…');
+  console.warn('[voz] Bot não está no canal configurado — reconectando…');
   scheduleReconnect(client, 400);
 }
 
@@ -152,7 +198,7 @@ function attachVoiceGuards(client) {
     const target = config.voiceChannelId();
     if (!target) return;
     if (newState.channelId === target) return;
-    console.warn('[voz] Estado de voz do bot mudou (saiu ou foi movido) — a reconectar…');
+    console.warn('[voz] Estado de voz do bot mudou (saiu ou foi movido) — reconectando…');
     scheduleReconnect(client, 300);
   });
 }
@@ -165,9 +211,9 @@ function startVoiceWatch(client) {
   tryJoin(client);
 
   if (voiceInterval) clearInterval(voiceInterval);
+  /** Só verifica presença no canal — não chama tryJoin em loop (evita reset do tempo). */
   voiceInterval = setInterval(() => {
     ensureMemberInChannel(client).catch(() => {});
-    tryJoin(client);
   }, config.voiceReconnectIntervalMs());
 }
 
