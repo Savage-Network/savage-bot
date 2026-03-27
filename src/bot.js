@@ -20,6 +20,10 @@ const { handleServidor } = require('./serverCommand');
 const { handleMinecraft } = require('./minecraftCommand');
 const { handleBotInfo } = require('./botInfoCommand');
 const { startDiscordLogging } = require('./discordLogger');
+const { handleCanal } = require('./canalCommand');
+const { registerAutorole } = require('./autorole');
+const { registerAutoResponses } = require('./autoResponses');
+const { handleDev } = require('./devCommand');
 
 const BOT_STARTED_AT_MS = Date.now();
 
@@ -31,6 +35,8 @@ const chatCommandHandlers = {
   servidor: (i) => handleServidor(i),
   minecraft: (i) => handleMinecraft(i),
   botinfo: (i) => handleBotInfo(i, BOT_STARTED_AT_MS),
+  canal: (i) => handleCanal(i),
+  dev: (i) => handleDev(i),
 };
 
 function createClient() {
@@ -55,6 +61,8 @@ function createClient() {
   });
 
   client.commands = new Collection();
+  registerAutorole(client);
+  registerAutoResponses(client);
 
   client.once('ready', async () => {
     console.log(`[SavageMC] Ligado como ${client.user.tag}`);
@@ -132,6 +140,56 @@ async function registerSlashCommands() {
     new SlashCommandBuilder()
       .setName('botinfo')
       .setDescription('Estatísticas do bot (uptime, memória, latência)')
+      .toJSON(),
+    new SlashCommandBuilder()
+      .setName('canal')
+      .setDescription('Bloquear, desbloquear ou limpar mensagens neste canal')
+      .setDMPermission(false)
+      .addSubcommand((s) =>
+        s
+          .setName('bloquear')
+          .setDescription('Impede @everyone de enviar mensagens aqui (lock)')
+      )
+      .addSubcommand((s) =>
+        s
+          .setName('desbloquear')
+          .setDescription('Permite novamente o envio para @everyone (unlock)')
+      )
+      .addSubcommand((s) =>
+        s
+          .setName('limpar')
+          .setDescription('Apaga mensagens recentes (máx. 1000; só últimos 14 dias)')
+          .addIntegerOption((o) =>
+            o
+              .setName('qtdmsgs')
+              .setDescription('Quantidade de mensagens a apagar (1 a 1000)')
+              .setRequired(true)
+              .setMinValue(1)
+              .setMaxValue(1000)
+          )
+      )
+      .toJSON(),
+    new SlashCommandBuilder()
+      .setName('dev')
+      .setDescription('Ferramentas de desenvolvimento (lista em canaisDEV)')
+      .setDMPermission(false)
+      .addSubcommand((s) =>
+        s
+          .setName('voice')
+          .setDescription('Ligar o bot à call de desenvolvimento (registo de sessão)')
+      )
+      .addSubcommand((s) =>
+        s
+          .setName('anotar')
+          .setDescription('Enviar anotação do dia para o teu canal de dev')
+          .addStringOption((o) =>
+            o
+              .setName('anotacao')
+              .setDescription('Texto da anotação')
+              .setRequired(true)
+              .setMaxLength(4000)
+          )
+      )
       .toJSON(),
     new SlashCommandBuilder()
       .setName('ticket')

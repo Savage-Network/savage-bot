@@ -72,6 +72,17 @@ function req(name) {
   return String(v).trim();
 }
 
+function parseCanaisDEV() {
+  const raw = fileConfig.canaisDEV;
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((e) => ({
+      idDiscord: e?.idDiscord != null ? String(e.idDiscord).trim() : '',
+      idCanal: e?.idCanal != null ? String(e.idCanal).trim() : '',
+    }))
+    .filter((e) => e.idDiscord && e.idCanal);
+}
+
 module.exports = {
   /** Só via .env — nunca commite o token no repositório. */
   token: () => req('DISCORD_TOKEN'),
@@ -156,4 +167,41 @@ module.exports = {
 
   discordLogBotMessages: () =>
     pickBool('discordLogBotMessages', 'DISCORD_LOG_BOT_MESSAGES', false),
+
+  /** Cargo atribuído automaticamente a novos membros (vazio = desativado). */
+  autoroleRoleId: () => pick('autoroleRoleId', 'AUTOROLE_ROLE_ID') || null,
+
+  /**
+   * Respostas automáticas por palavra/frase (estilo Loritta).
+   * Cada item: `{ "trigger", "response", "wholeWord"?, "caseSensitive"? }`
+   */
+  autoResponses: () => {
+    if (process.env.AUTO_RESPONSES_JSON != null && String(process.env.AUTO_RESPONSES_JSON).trim() !== '') {
+      try {
+        const parsed = JSON.parse(process.env.AUTO_RESPONSES_JSON);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    const raw = fileConfig.autoResponses;
+    return Array.isArray(raw) ? raw : [];
+  },
+
+  /**
+   * Lista de devs: `{ "idDiscord", "idCanal" }` — canal de texto para `/dev anotar`.
+   */
+  canaisDEV: () => parseCanaisDEV(),
+
+  /** Canal de texto de anotações para este utilizador (canaisDEV), ou null. */
+  devNoteChannelIdForUser: (userId) => {
+    const id = String(userId).trim();
+    for (const e of parseCanaisDEV()) {
+      if (e.idDiscord === id) return e.idCanal;
+    }
+    return null;
+  },
+
+  /** Canal de voz para `/dev voice` (independente de voiceEnabled). */
+  devVoiceChannelId: () => pick('devVoiceChannelId', 'DEV_VOICE_CHANNEL_ID') || null,
 };

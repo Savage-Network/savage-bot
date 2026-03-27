@@ -42,6 +42,10 @@ async function handleBotInfo(interaction, startedAtMs) {
         value: guild
           ? `${guild.name} · ${guild.memberCount} membros`
           : '_DM / sem servidor_',
+      },
+      {
+        name: 'Créditos',
+        value: 'desenhar · henqks · zrwfa',
       }
     )
     .setFooter(footer({ text: 'Node.js ' + process.version }))

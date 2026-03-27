@@ -9,7 +9,7 @@ async function handleHelp(interaction) {
     .setColor(config.ticketEmbedColor())
     .setTitle('SavageMC · comandos')
     .setDescription(
-      'Bot de suporte, status do servidor Minecraft e voz.'
+      'Bot de suporte, status Minecraft, moderação leve e respostas automáticas.'
     )
     .addFields(
       {
@@ -21,6 +21,25 @@ async function handleHelp(interaction) {
           '`/minecraft` — endereço e dados rápidos para conectar\n' +
           '`/servidor` — info deste Discord (membros, boost, etc.)\n' +
           '`/botinfo` — uptime, memória e latência do bot',
+      },
+      {
+        name: 'Moderação (canal)',
+        value:
+          '`/canal bloquear` — lock: @everyone não envia mensagens (precisa **Gerir canais**)\n' +
+          '`/canal desbloquear` — unlock: reverte o bloqueio\n' +
+          '`/canal limpar` qtdmsgs — apaga até 1000 mensagens recentes (**Gerir mensagens**)',
+      },
+      {
+        name: 'Dev (canaisDEV)',
+        value:
+          '`/dev voice` — bot entra na call (`devVoiceChannelId` ou `voiceChannelId`)\n' +
+          '`/dev anotar` — envia anotação para o teu `idCanal` (só IDs em `canaisDEV`)',
+      },
+      {
+        name: 'Automático (config)',
+        value:
+          '**Autorole** — cargo ao entrar: `autoroleRoleId` em `config.json` (ou `AUTOROLE_ROLE_ID`)\n' +
+          '**Palavras** — mensagens que disparam texto: lista `autoResponses` no JSON (ou `AUTO_RESPONSES_JSON`)',
       },
       {
         name: 'Tickets',

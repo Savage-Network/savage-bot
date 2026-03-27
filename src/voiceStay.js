@@ -55,13 +55,17 @@ async function isStableInTargetChannel(client, channel) {
   return member?.voice?.channelId === channel.id;
 }
 
-async function connectVoice(client) {
-  const channelId = config.voiceChannelId();
+/**
+ * Liga o bot a um canal de voz por ID.
+ * @param {{ reconnectOnError?: boolean }} [opts] — se `true`, reconecta ao canal de voz principal (watch); use `false` para `/dev voice`.
+ */
+async function joinVoiceChannelById(client, channelId, opts = {}) {
+  const reconnectOnError = !!opts.reconnectOnError;
   if (!channelId) return null;
 
   const channel = await client.channels.fetch(channelId).catch(() => null);
   if (!channel || !channel.isVoiceBased()) {
-    console.warn('[voz] VOICE_CHANNEL_ID inválido ou canal inacessível.');
+    console.warn('[voz] Canal inválido ou inacessível:', channelId);
     return null;
   }
 
@@ -115,7 +119,7 @@ async function connectVoice(client) {
 
   connection.on('error', (err) => {
     console.error('[voz] Erro na ligação:', err?.message || err);
-    scheduleReconnect(client, 800);
+    if (reconnectOnError) scheduleReconnect(client, 800);
   });
 
   connection.on('stateChange', (oldState, newState) => {
@@ -124,10 +128,10 @@ async function connectVoice(client) {
       try {
         if (connection.state.status === VoiceConnectionStatus.Disconnected) {
           const ok = connection.rejoin();
-          if (!ok) scheduleReconnect(client, 500);
+          if (!ok && reconnectOnError) scheduleReconnect(client, 500);
         }
       } catch {
-        scheduleReconnect(client, 500);
+        if (reconnectOnError) scheduleReconnect(client, 500);
       }
     }
   });
@@ -150,10 +154,16 @@ async function connectVoice(client) {
     } catch {
       /* ignore */
     }
-    scheduleReconnect(client, 1500);
+    if (reconnectOnError) scheduleReconnect(client, 1500);
   }
 
   return connection;
+}
+
+async function connectVoice(client) {
+  const channelId = config.voiceChannelId();
+  if (!channelId) return null;
+  return joinVoiceChannelById(client, channelId, { reconnectOnError: true });
 }
 
 async function tryJoin(client) {
@@ -248,4 +258,10 @@ function stopVoiceWatch() {
    * o client.destroy() no shutdown encerra tudo. */
 }
 
-module.exports = { connectVoice, startVoiceWatch, stopVoiceWatch, tryJoin };
+module.exports = {
+  connectVoice,
+  joinVoiceChannelById,
+  startVoiceWatch,
+  stopVoiceWatch,
+  tryJoin,
+};

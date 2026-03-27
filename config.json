@@ -17,5 +17,28 @@
   "discordLogChannelId": "1486476179878969468",
   "discordLogMessageCreate": false,
   "discordLogReactions": false,
-  "discordLogBotMessages": false
+  "discordLogBotMessages": false,
+  "autoroleRoleId": null,
+  "autoResponses": [
+    {
+      "trigger": "qual o ip",
+      "response": "Usa `/minecraft` para ver o endereço e dados do servidor.",
+      "wholeWord": false
+    }
+  ],
+  "devVoiceChannelId": "1486476177240752349",
+  "canaisDEV": [
+    {
+      "idDiscord": "1306748011476549715",
+      "idCanal": "1487186452532953159"
+    },
+    {
+      "idDiscord": "769311943235469393",
+      "idCanal": "1487186471549931550"
+    },
+    {
+      "idDiscord": "738094318497300500",
+      "idCanal": "1487186491313487913"
+    }
+  ]
 }

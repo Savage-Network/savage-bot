@@ -46,7 +46,7 @@ function enqueueSend(client, buildEmbed) {
       let ch = client.channels.cache.get(id);
       if (!ch) ch = await client.channels.fetch(id).catch(() => null);
       if (!ch || !ch.isTextBased()) return;
-      const embed = buildEmbed();
+      const embed = await Promise.resolve(buildEmbed());
       if (!embed) return;
       await ch.send({ embeds: [embed] }).catch((e) => {
         console.error('[discordLog] Falha ao enviar:', e?.message || e);
@@ -70,9 +70,37 @@ function formatTarget(entry) {
   if (typeof t === 'string') return t;
   if (t.tag) return `${t.tag} (\`${t.id}\`)`;
   if (t.name != null && t.id) return `${t.name} (\`${t.id}\`)`;
-  if (t.username) return `${t.username} (\`${t.id}\`)`;
+  if (t.username != null && t.id) return `${t.username} (\`${t.id}\`)`;
+  if (t.globalName && t.id) return `${t.globalName} (\`${t.id}\`)`;
   if (t.id) return `\`${t.id}\``;
   return truncate(JSON.stringify(t), 200);
+}
+
+/** Evita "null" no embed quando a API devolve executor parcial (sem tag). */
+async function formatAuditExecutor(entry, client) {
+  const id = entry.executorId ?? entry.executor?.id;
+  if (!id) return '—';
+
+  const ex = entry.executor;
+  if (ex) {
+    if (ex.tag) return `${ex.tag} (\`${id}\`)`;
+    if (ex.username != null && String(ex.username).trim() !== '') {
+      const disc = ex.discriminator;
+      const disp =
+        disc && disc !== '0' && disc !== '0000'
+          ? `${ex.username}#${disc}`
+          : String(ex.username);
+      return `${disp} (\`${id}\`)`;
+    }
+    if (ex.globalName) return `${ex.globalName} (\`${id}\`)`;
+  }
+
+  try {
+    const u = await client.users.fetch(id);
+    return `${u.tag} (\`${id}\`)`;
+  } catch {
+    return `\`${id}\` _(executor não resolvido)_`;
+  }
 }
 
 function formatChanges(changes) {
@@ -104,13 +132,11 @@ function formatExtra(entry) {
   }
 }
 
-function buildAuditEmbed(entry, guild) {
+function buildAuditEmbed(entry, guild, executorDisplay) {
   const actionName = resolveAuditActionName(entry.action);
-  const exec = entry.executor
-    ? `${entry.executor.tag} (\`${entry.executor.id}\`)`
-    : entry.executorId
-      ? `\`${entry.executorId}\``
-      : '—';
+  const exec =
+    executorDisplay ??
+    (entry.executorId ? `\`${entry.executorId}\`` : '—');
 
   const embed = new EmbedBuilder()
     .setColor(LOG_COLOR_AUDIT)
@@ -148,7 +174,10 @@ function startDiscordLogging(client) {
 
   client.on('guildAuditLogEntryCreate', (entry, guild) => {
     if (!shouldLogGuild(guild)) return;
-    enqueueSend(client, () => buildAuditEmbed(entry, guild));
+    enqueueSend(client, async () => {
+      const executorDisplay = await formatAuditExecutor(entry, guild.client);
+      return buildAuditEmbed(entry, guild, executorDisplay);
+    });
   });
 
   client.on('guildMemberAdd', (member) => {
