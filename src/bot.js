@@ -60,7 +60,7 @@ function createClient() {
     console.log(`[SavageMC] Ligado como ${client.user.tag}`);
     startDiscordLogging(client);
     startMcPresence(client);
-    startVoiceWatch(client);
+    if (config.voiceEnabled()) startVoiceWatch(client);
   });
 
   client.on('interactionCreate', async (interaction) => {
@@ -95,7 +95,7 @@ function createClient() {
 
   function shutdown() {
     stopMcPresence();
-    stopVoiceWatch();
+    if (config.voiceEnabled()) stopVoiceWatch();
     client.destroy();
     process.exit(0);
   }

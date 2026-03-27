@@ -113,6 +113,9 @@ module.exports = {
 
   voiceChannelId: () => pick('voiceChannelId', 'VOICE_CHANNEL_ID') || null,
 
+  /** Mantém o bot num canal de voz fixo. `false` desativa (não liga à call). */
+  voiceEnabled: () => pickBool('voiceEnabled', 'VOICE_ENABLED', true),
+
   voiceReconnectIntervalMs: () =>
     pickNum('voiceReconnectIntervalMs', 'VOICE_RECONNECT_INTERVAL_MS', 30000, {
       min: 5000,
