@@ -18,7 +18,7 @@
   "discordLogMessageCreate": false,
   "discordLogReactions": false,
   "discordLogBotMessages": false,
-  "autoroleRoleId": null,
+  "autoroleRoleId": "1486476170177417354",
   "autoResponses": [
     {
       "trigger": "qual o ip",
