@@ -19,8 +19,8 @@ function loadFileConfig() {
 const fileConfig = loadFileConfig();
 
 /**
- * Valores de config.json podem ser sobrescritos por variáveis de ambiente (útil no Pterodactyl).
- * IDs do Discord devem ser strings no JSON (evita perda de precisão em números grandes).
+ * Ambiente sobrescreve config.json (útil no Pterodactyl / Docker).
+ * IDs grandes do Discord devem ser strings no JSON.
  */
 function pick(key, envKey, fallback = '') {
   const env = process.env[envKey];
@@ -31,81 +31,126 @@ function pick(key, envKey, fallback = '') {
   return s !== '' ? s : fallback;
 }
 
+function pickNum(key, envKey, defaultNum, { min, max } = {}) {
+  let n = NaN;
+  const env = process.env[envKey];
+  if (env != null && String(env).trim() !== '') {
+    n = parseInt(String(env).trim(), 10);
+  } else if (fileConfig[key] != null && fileConfig[key] !== '') {
+    const v = fileConfig[key];
+    n = typeof v === 'number' ? v : parseInt(String(v), 10);
+  }
+  if (!Number.isFinite(n)) n = defaultNum;
+  if (min != null && n < min) n = min;
+  if (max != null && n > max) n = max;
+  return n;
+}
+
+function pickBool(key, envKey, defaultBool = false) {
+  const env = process.env[envKey];
+  if (env != null && String(env).trim() !== '') {
+    const v = String(env).toLowerCase();
+    return v === '1' || v === 'true' || v === 'yes';
+  }
+  const v = fileConfig[key];
+  if (typeof v === 'boolean') return v;
+  if (typeof v === 'number') return v !== 0;
+  if (typeof v === 'string') {
+    const s = v.toLowerCase();
+    return s === '1' || s === 'true' || s === 'yes';
+  }
+  return defaultBool;
+}
+
 function req(name) {
   const v = process.env[name];
   if (!v || !String(v).trim()) {
-    throw new Error(`Variável de ambiente obrigatória ausente: ${name}`);
+    throw new Error(
+      `Token ausente: defina ${name} no .env (não coloque o token no config.json).`
+    );
   }
   return String(v).trim();
 }
 
-function opt(name, fallback = '') {
-  const v = process.env[name];
-  return v != null && String(v).trim() !== '' ? String(v).trim() : fallback;
-}
-
 module.exports = {
+  /** Só via .env — nunca commite o token no repositório. */
   token: () => req('DISCORD_TOKEN'),
-  clientId: () => req('DISCORD_CLIENT_ID'),
-  guildId: () => opt('GUILD_ID') || null,
-  mcHost: () => opt('MC_HOST', '127.0.0.1'),
-  mcPort: () => {
-    const p = parseInt(opt('MC_PORT', '25565'), 10);
-    return Number.isFinite(p) && p > 0 ? p : 25565;
-  },
-  mcPresenceIntervalMs: () => {
-    const n = parseInt(opt('MC_PRESENCE_INTERVAL_MS', '45000'), 10);
-    return Number.isFinite(n) && n >= 15000 ? n : 45000;
-  },
-  /** Timeout (ms) para ping ao servidor Java em `/status` e na presence. */
-  mcStatusTimeoutMs: () => {
-    const n = parseInt(opt('MC_STATUS_TIMEOUT_MS', '15000'), 10);
-    return Number.isFinite(n) && n >= 3000 ? n : 15000;
-  },
-  /** Resolução SRV (_minecraft._tcp) para domínios. Se o servidor usar IP direto, podes desativar. */
-  mcEnableSRV: () => {
-    const v = opt('MC_ENABLE_SRV', '1').toLowerCase();
-    return v !== '0' && v !== 'false' && v !== 'no';
-  },
-  voiceChannelId: () => opt('VOICE_CHANNEL_ID') || null,
-  /** Intervalo só para checar se o bot ainda está no canal (não força reconexão). Mín. 5s. */
-  voiceReconnectIntervalMs: () => {
-    const n = parseInt(opt('VOICE_RECONNECT_INTERVAL_MS', '30000'), 10);
-    return Number.isFinite(n) && n >= 5000 ? n : 30000;
-  },
-  /** Canal de texto onde o painel de tickets deve ser publicado (vazio = qualquer canal). */
-  ticketPanelChannelId: () => pick('ticketPanelChannelId', 'TICKET_PANEL_CHANNEL_ID') || null,
-  /** Categoria onde são criados os canais de tickets abertos. */
-  ticketCategoryId: () => {
-    const v = pick('ticketCategoryId', 'TICKET_CATEGORY_ID');
+
+  clientId: () => {
+    const v = pick('clientId', 'DISCORD_CLIENT_ID');
     if (!v) {
       throw new Error(
-        'Defina ticketCategoryId em config.json (ou TICKET_CATEGORY_ID no ambiente).'
+        'Defina clientId em config.json ou DISCORD_CLIENT_ID no ambiente.'
       );
     }
     return v;
   },
-  /** Cargo da staff para tickets (vazio = só Administradores). */
-  staffRoleId: () => pick('staffRoleId', 'STAFF_ROLE_ID') || null,
-  ticketLogChannelId: () => opt('TICKET_LOG_CHANNEL_ID') || null,
-  ticketEmbedColor: () => parseInt(opt('TICKET_EMBED_COLOR', '15158332'), 10) || 15158332,
 
-  /** Canal de texto para logs gerais do servidor (mensagens, auditoria, voz, comandos). */
+  guildId: () => pick('guildId', 'GUILD_ID') || null,
+
+  mcHost: () => pick('mcHost', 'MC_HOST', '127.0.0.1'),
+
+  mcPort: () => pickNum('mcPort', 'MC_PORT', 25565, { min: 1, max: 65535 }),
+
+  mcPresenceIntervalMs: () =>
+    pickNum('mcPresenceIntervalMs', 'MC_PRESENCE_INTERVAL_MS', 45000, {
+      min: 15000,
+    }),
+
+  mcStatusTimeoutMs: () =>
+    pickNum('mcStatusTimeoutMs', 'MC_STATUS_TIMEOUT_MS', 15000, { min: 3000 }),
+
+  mcEnableSRV: () => {
+    if (process.env.MC_ENABLE_SRV != null && String(process.env.MC_ENABLE_SRV).trim() !== '') {
+      const v = String(process.env.MC_ENABLE_SRV).toLowerCase();
+      return v !== '0' && v !== 'false' && v !== 'no';
+    }
+    if (typeof fileConfig.mcEnableSRV === 'boolean') return fileConfig.mcEnableSRV;
+    if (fileConfig.mcEnableSRV == null) return true;
+    const v = String(fileConfig.mcEnableSRV).toLowerCase();
+    return v !== '0' && v !== 'false' && v !== 'no';
+  },
+
+  voiceChannelId: () => pick('voiceChannelId', 'VOICE_CHANNEL_ID') || null,
+
+  voiceReconnectIntervalMs: () =>
+    pickNum('voiceReconnectIntervalMs', 'VOICE_RECONNECT_INTERVAL_MS', 30000, {
+      min: 5000,
+    }),
+
+  ticketPanelChannelId: () =>
+    pick('ticketPanelChannelId', 'TICKET_PANEL_CHANNEL_ID') || null,
+
+  ticketCategoryId: () => {
+    const v = pick('ticketCategoryId', 'TICKET_CATEGORY_ID');
+    if (!v) {
+      throw new Error(
+        'Defina ticketCategoryId em config.json ou TICKET_CATEGORY_ID no ambiente.'
+      );
+    }
+    return v;
+  },
+
+  staffRoleId: () => pick('staffRoleId', 'STAFF_ROLE_ID') || null,
+
+  ticketLogChannelId: () =>
+    pick('ticketLogChannelId', 'TICKET_LOG_CHANNEL_ID') || null,
+
+  ticketEmbedColor: () =>
+    pickNum('ticketEmbedColor', 'TICKET_EMBED_COLOR', 15158332, {
+      min: 0,
+      max: 0xffffff,
+    }),
+
   discordLogChannelId: () =>
     pick('discordLogChannelId', 'DISCORD_LOG_CHANNEL_ID') || null,
-  /** `1` = regista cada mensagem nova (pode gerar muito volume). */
-  discordLogMessageCreate: () => {
-    const v = opt('DISCORD_LOG_MESSAGE_CREATE', '0').toLowerCase();
-    return v === '1' || v === 'true' || v === 'yes';
-  },
-  /** `1` = reações adicionadas/removidas. */
-  discordLogReactions: () => {
-    const v = opt('DISCORD_LOG_REACTIONS', '0').toLowerCase();
-    return v === '1' || v === 'true' || v === 'yes';
-  },
-  /** `1` = incluir mensagens/reações de bots nos logs opcionais. */
-  discordLogBotMessages: () => {
-    const v = opt('DISCORD_LOG_BOT_MESSAGES', '0').toLowerCase();
-    return v === '1' || v === 'true' || v === 'yes';
-  },
+
+  discordLogMessageCreate: () =>
+    pickBool('discordLogMessageCreate', 'DISCORD_LOG_MESSAGE_CREATE', false),
+
+  discordLogReactions: () =>
+    pickBool('discordLogReactions', 'DISCORD_LOG_REACTIONS', false),
+
+  discordLogBotMessages: () =>
+    pickBool('discordLogBotMessages', 'DISCORD_LOG_BOT_MESSAGES', false),
 };

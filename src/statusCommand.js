@@ -66,7 +66,7 @@ async function handleStatus(interaction) {
     .setTitle('SavageMC · offline ou inacessível')
     .setDescription(
       `Não foi possível obter o status em \`${host}\`.\n\n` +
-        'Verifique **MC_HOST** e **MC_ENABLE_SRV** (e **MC_PORT** no ambiente do bot se o servidor não usar SRV). ' +
+        'Verifique **mcHost**, **mcEnableSRV** e **mcPort** em `config.json` (ou variáveis de ambiente). ' +
         'Com **DEBUG_MC=1** você vê o erro no log do bot.'
     )
     .setFooter(footer())

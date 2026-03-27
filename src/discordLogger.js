@@ -140,7 +140,7 @@ function buildAuditEmbed(entry, guild) {
 
 function startDiscordLogging(client) {
   if (!config.discordLogChannelId()) {
-    console.log('[discordLog] Desativado (defina DISCORD_LOG_CHANNEL_ID ou discordLogChannelId).');
+    console.log('[discordLog] Desativado (defina discordLogChannelId em config.json ou DISCORD_LOG_CHANNEL_ID).');
     return;
   }
 

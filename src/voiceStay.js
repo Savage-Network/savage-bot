@@ -14,9 +14,9 @@ const {
 const config = require('./config');
 
 let voiceInterval = null;
-let lastGuildId = null;
 let reconnectTimeout = null;
 let voiceListenersAttached = false;
+let gatewayListenersAttached = false;
 /** Evita várias ligações em paralelo (reconexões duplicadas resetam o tempo na call). */
 let joinInFlight = false;
 
@@ -64,8 +64,6 @@ async function connectVoice(client) {
     console.warn('[voz] VOICE_CHANNEL_ID inválido ou canal inacessível.');
     return null;
   }
-
-  lastGuildId = channel.guildId;
 
   if (await isStableInTargetChannel(client, channel)) {
     const conn = getVoiceConnection(channel.guildId);
@@ -203,10 +201,30 @@ function attachVoiceGuards(client) {
   });
 }
 
+/** Após queda/reconexão do gateway WebSocket, a voz pode cair — volta a entrar no canal. */
+function attachGatewayVoiceGuards(client) {
+  if (gatewayListenersAttached) return;
+  gatewayListenersAttached = true;
+
+  client.on('shardResume', (shardId, replayed) => {
+    if (!config.voiceChannelId()) return;
+    console.warn(
+      `[voz] Gateway retomado (shard ${shardId}, ${replayed} eventos) — garantindo canal de voz…`
+    );
+    scheduleReconnect(client, 1200);
+  });
+
+  client.on('shardDisconnect', (event, shardId) => {
+    if (!config.voiceChannelId()) return;
+    console.warn(`[voz] Gateway desconectado (shard ${shardId}, código ${event.code}) — aguardando retomada…`);
+  });
+}
+
 function startVoiceWatch(client) {
   if (!config.voiceChannelId()) return;
 
   attachVoiceGuards(client);
+  attachGatewayVoiceGuards(client);
 
   tryJoin(client);
 
@@ -226,14 +244,8 @@ function stopVoiceWatch() {
     clearInterval(voiceInterval);
     voiceInterval = null;
   }
-  if (lastGuildId) {
-    const conn = getVoiceConnection(lastGuildId);
-    try {
-      conn?.destroy();
-    } catch {
-      /* ignore */
-    }
-  }
+  /** Não chamar destroy() aqui: evita sinal explícito de sair da call antes do encerramento;
+   * o client.destroy() no shutdown encerra tudo. */
 }
 
 module.exports = { connectVoice, startVoiceWatch, stopVoiceWatch, tryJoin };

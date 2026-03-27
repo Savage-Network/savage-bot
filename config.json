@@ -1,5 +1,20 @@
 {
+  "clientId": "1486849174321500291",
+  "guildId": "1486476169770700883",
+  "mcHost": "savagemc.net",
+  "mcPort": 25580,
+  "mcPresenceIntervalMs": 45000,
+  "mcStatusTimeoutMs": 15000,
+  "mcEnableSRV": true,
+  "voiceChannelId": "1486476177240752349",
+  "voiceReconnectIntervalMs": 30000,
   "ticketPanelChannelId": "1486476179052691510",
   "ticketCategoryId": "1486476177240752350",
-  "staffRoleId": "1486476170202452090"
+  "staffRoleId": "1486476170202452090",
+  "ticketLogChannelId": "1486476179878969471",
+  "ticketEmbedColor": 43520,
+  "discordLogChannelId": "1486476179878969468",
+  "discordLogMessageCreate": false,
+  "discordLogReactions": false,
+  "discordLogBotMessages": false
 }
