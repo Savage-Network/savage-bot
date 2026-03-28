@@ -1,4 +1,5 @@
 {
+  "_info": "SavageMC — token só no .env (DISCORD_TOKEN). Variáveis de ambiente sobrescrevem o JSON. Tickets: use o bloco \"ticket\" abaixo (ou chaves antigas ticket* na raiz).",
   "clientId": "1486849174321500291",
   "guildId": "1486476169770700883",
   "mcHost": "savagemc.net",
@@ -9,11 +10,15 @@
   "voiceChannelId": "1486476177240752349",
   "voiceEnabled": false,
   "voiceReconnectIntervalMs": 30000,
-  "ticketPanelChannelId": "1486476179052691510",
-  "ticketCategoryId": "1486476177240752350",
-  "staffRoleId": "1486476170202452090",
-  "ticketLogChannelId": "1486476179878969471",
-  "ticketEmbedColor": 43520,
+  "ticket": {
+    "panelChannelId": "1486476179052691510",
+    "categoryId": "1486476177240752350",
+    "staffRoleId": "1486476170202452090",
+    "logChannelId": "1486476179878969471",
+    "embedColor": 43520,
+    "panelBannerUrl": "https://cdn.discordapp.com/attachments/1483233538567438457/1487449776256581694/painelticket.png?ex=69c92f0e&is=69c7dd8e&hm=44a05995ad2ecd7556265b256458b214f205914694b0178ff176d877b21396fd&",
+    "panelFooterText": "-# savagemc.net"
+  },
   "discordLogChannelId": "1486476179878969468",
   "discordLogMessageCreate": false,
   "discordLogReactions": false,

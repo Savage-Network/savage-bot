@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Components V2 — ver {@link https://discord.builders/ discord.builders}
+ * Painel e boas-vindas: Components V2 — ver {@link https://discord.builders/ discord.builders}
  * Requer {@link MessageFlags.IsComponentsV2}.
  */
 
@@ -11,6 +11,8 @@ const {
   SeparatorBuilder,
   SectionBuilder,
   ThumbnailBuilder,
+  MediaGalleryBuilder,
+  MediaGalleryItemBuilder,
 } = require('@discordjs/builders');
 const {
   ActionRowBuilder,
@@ -24,20 +26,10 @@ const {
 const FALLBACK_GUILD_ICON =
   'https://cdn.discordapp.com/embed/avatars/2.png';
 
-/**
- * @param {object} opts
- * @param {string} opts.selectCustomId
- * @param {number} opts.accentColor decimal
- * @param {string} [opts.guildName]
- * @param {string | null} [opts.guildIconUrl]
- */
-function buildTicketPanel({ selectCustomId, accentColor, guildName, guildIconUrl }) {
-  const name = guildName && String(guildName).trim() ? String(guildName).trim() : 'SavageMC';
-  const thumbUrl = guildIconUrl && String(guildIconUrl).trim() ? String(guildIconUrl).trim() : FALLBACK_GUILD_ICON;
-
-  const select = new StringSelectMenuBuilder()
+function buildTicketTypeSelectMenu(selectCustomId) {
+  return new StringSelectMenuBuilder()
     .setCustomId(selectCustomId)
-    .setPlaceholder('Escolha o tipo de ticket')
+    .setPlaceholder('Selecione uma opção de atendimento')
     .addOptions(
       new StringSelectMenuOptionBuilder()
         .setLabel('Loja')
@@ -58,19 +50,51 @@ function buildTicketPanel({ selectCustomId, accentColor, guildName, guildIconUrl
         .setLabel('Suporte')
         .setValue('suporte')
         .setDescription('Dúvidas gerais e ajuda')
-        .setEmoji('💬')
+        .setEmoji('💬'),
+      new StringSelectMenuOptionBuilder()
+        .setLabel('Solicitar Tag')
+        .setValue('solicitar_tag')
+        .setDescription('Nick no Minecraft e link do canal')
+        .setEmoji('🏷️')
     );
+}
+
+/**
+ * Painel “Central de Atendimento” (igual ao layout de referência): container + menu.
+ * @param {object} opts
+ * @param {string} opts.selectCustomId
+ * @param {number} opts.accentColor decimal
+ * @param {string} [opts.guildName]
+ * @param {string | null} [opts.guildIconUrl]
+ * @param {string | null} [opts.bannerUrl] — URL da imagem grande (MediaGallery); vazio omite
+ * @param {string} [opts.footerText] — texto do rodapé (itálico)
+ */
+function buildTicketPanel({
+  selectCustomId,
+  accentColor,
+  guildName,
+  guildIconUrl,
+  bannerUrl,
+  footerText,
+}) {
+  const name =
+    guildName && String(guildName).trim() ? String(guildName).trim() : 'SavageMC';
+  const thumbUrl =
+    guildIconUrl && String(guildIconUrl).trim()
+      ? String(guildIconUrl).trim()
+      : FALLBACK_GUILD_ICON;
+  const footer =
+    footerText && String(footerText).trim()
+      ? String(footerText).trim()
+      : 'SavageMC';
 
   const section = new SectionBuilder()
     .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent('# ❓ Central de Atendimento')
+    )
+    .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `# ${name}\n**Central de suporte**`
-      ),
-      new TextDisplayBuilder().setContent(
-        'Escolha abaixo o **tipo de ticket**. Será pedido o seu **nick no Minecraft**.\n\n' +
-          'Em **Denúncia** também pedimos o nick de **quem você está denunciando**.\n\n' +
-          '- Canal privado só para você e a staff\n' +
-          '- Resposta o mais rápido possível'
+        '**Precisa de ajuda? Selecione a categoria desejada.**'
       )
     )
     .setThumbnailAccessory(
@@ -79,11 +103,32 @@ function buildTicketPanel({ selectCustomId, accentColor, guildName, guildIconUrl
         .setDescription(`${name} · ícone do servidor`)
     );
 
-  return new ContainerBuilder()
+  let container = new ContainerBuilder()
     .setAccentColor(accentColor)
     .addSectionComponents(section)
+    .addSeparatorComponents(new SeparatorBuilder().setDivider(true));
+
+  const banner = bannerUrl && String(bannerUrl).trim();
+  if (banner) {
+    container = container.addMediaGalleryComponents(
+      new MediaGalleryBuilder().addItems(
+        new MediaGalleryItemBuilder()
+          .setURL(banner)
+          .setDescription('Atendimento')
+      )
+    );
+  }
+
+  return container
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(`*${footer}*`)
+    )
     .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
-    .addActionRowComponents(new ActionRowBuilder().addComponents(select));
+    .addActionRowComponents(
+      new ActionRowBuilder().addComponents(
+        buildTicketTypeSelectMenu(selectCustomId)
+      )
+    );
 }
 
 /**
@@ -97,6 +142,7 @@ function buildTicketPanel({ selectCustomId, accentColor, guildName, guildIconUrl
  * @param {string} opts.ticketId identificador único do ticket (canal)
  * @param {string} opts.minecraftNick
  * @param {string | null} [opts.reportedNick] só em denúncias
+ * @param {string | null} [opts.channelLink] só em Solicitar Tag
  * @param {string | null} [opts.claimedById] staff que assumiu o ticket
  */
 function buildTicketWelcome({
@@ -109,6 +155,7 @@ function buildTicketWelcome({
   ticketId,
   minecraftNick,
   reportedNick,
+  channelLink,
   claimedById,
 }) {
   const mentionLine =
@@ -121,6 +168,11 @@ function buildTicketWelcome({
     `**Tipo:** ${ticketTypeLabel}\n**Nick no Minecraft:** \`${minecraftNick}\``;
   if (reportedNick != null && String(reportedNick).trim() !== '') {
     info += `\n**Denunciado (nick):** \`${reportedNick}\``;
+  }
+  if (channelLink != null && String(channelLink).trim() !== '') {
+    const link = String(channelLink).trim();
+    const linkShow = link.length > 400 ? `${link.slice(0, 397)}…` : link;
+    info += `\n**Link do canal:** ${linkShow}`;
   }
   info += `\n**Assumido por:** ${
     claimedById && String(claimedById).length > 0

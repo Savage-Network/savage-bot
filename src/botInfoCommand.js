@@ -20,6 +20,8 @@ function formatUptime(ms) {
 }
 
 async function handleBotInfo(interaction, startedAtMs) {
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
   const uptime = formatUptime(Date.now() - startedAtMs);
   const mem = process.memoryUsage();
   const rssMb = (mem.rss / 1024 / 1024).toFixed(1);
@@ -51,7 +53,7 @@ async function handleBotInfo(interaction, startedAtMs) {
     .setFooter(footer({ text: 'Node.js ' + process.version }))
     .setTimestamp();
 
-  await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+  await interaction.editReply({ embeds: [embed] });
 }
 
 module.exports = { handleBotInfo };

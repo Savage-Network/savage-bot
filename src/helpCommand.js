@@ -60,7 +60,7 @@ async function handleHelp(interaction) {
       {
         name: 'Painel',
         value:
-          'Escolha **Loja**, **Bugs**, **Denúncia** ou **Suporte**, informe o nick no Minecraft e um canal privado será aberto.',
+          'Painel **Central de Atendimento** (container V2 + menu). Categorias: Loja, Bugs, Denúncia, Suporte, Solicitar Tag.',
       }
     )
     .setFooter(footer())

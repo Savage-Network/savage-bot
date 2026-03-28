@@ -8,6 +8,7 @@ const {
   REST,
   Routes,
   MessageFlags,
+  Events,
 } = require('discord.js');
 const config = require('./config');
 const { startMcPresence, stopMcPresence } = require('./mcPresence');
@@ -64,7 +65,7 @@ function createClient() {
   registerAutorole(client);
   registerAutoResponses(client);
 
-  client.once('ready', async () => {
+  client.once(Events.ClientReady, async () => {
     console.log(`[SavageMC] Ligado como ${client.user.tag}`);
     startDiscordLogging(client);
     startMcPresence(client);
@@ -75,21 +76,30 @@ function createClient() {
     try {
       if (interaction.isChatInputCommand()) {
         const run = chatCommandHandlers[interaction.commandName];
-        if (run) return run(interaction);
+        if (run) return await run(interaction);
       }
       if (interaction.isStringSelectMenu()) {
-        return tickets.handleSelectMenu(interaction);
+        return await tickets.handleSelectMenu(interaction);
       }
       if (interaction.isModalSubmit()) {
         if (interaction.customId === 'dev_commit_modal') {
-          return handleDevCommitModal(interaction);
+          return await handleDevCommitModal(interaction);
         }
-        return tickets.handleModalSubmit(interaction);
+        return await tickets.handleModalSubmit(interaction);
       }
       if (interaction.isButton()) {
-        return tickets.routeComponent(interaction);
+        return await tickets.routeComponent(interaction);
       }
     } catch (err) {
+      const code = err?.code ?? err?.rawError?.code;
+      if (code === 10062 || code === 40060) {
+        console.warn(
+          '[interação] Interação expirada ou já respondida (código',
+          code,
+          ').'
+        );
+        return;
+      }
       console.error('[interação]', err);
       const msg = 'Ocorreu um erro ao processar a solicitação.';
       if (interaction.deferred || interaction.replied) {

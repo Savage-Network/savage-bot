@@ -83,6 +83,27 @@ function parseCanaisDEV() {
     .filter((e) => e.idDiscord && e.idCanal);
 }
 
+/**
+ * Lê `config.json` → objeto `ticket` (recomendado) ou chaves antigas na raiz.
+ * @param {string} nestedKey — ex.: panelChannelId
+ * @param {string} [legacyFlatKey] — ex.: ticketPanelChannelId
+ */
+function readTicketField(nestedKey, legacyFlatKey) {
+  const t = fileConfig.ticket;
+  if (t && typeof t === 'object' && Object.prototype.hasOwnProperty.call(t, nestedKey)) {
+    const v = t[nestedKey];
+    if (v !== undefined && v !== null) {
+      if (typeof v === 'boolean') return v;
+      if (typeof v === 'number') return v;
+      return v;
+    }
+  }
+  if (legacyFlatKey && fileConfig[legacyFlatKey] !== undefined && fileConfig[legacyFlatKey] !== null) {
+    return fileConfig[legacyFlatKey];
+  }
+  return undefined;
+}
+
 module.exports = {
   /** Só via .env — nunca commite o token no repositório. */
   token: () => req('DISCORD_TOKEN'),
@@ -132,29 +153,82 @@ module.exports = {
       min: 5000,
     }),
 
-  ticketPanelChannelId: () =>
-    pick('ticketPanelChannelId', 'TICKET_PANEL_CHANNEL_ID') || null,
-
-  ticketCategoryId: () => {
-    const v = pick('ticketCategoryId', 'TICKET_CATEGORY_ID');
-    if (!v) {
-      throw new Error(
-        'Defina ticketCategoryId em config.json ou TICKET_CATEGORY_ID no ambiente.'
-      );
-    }
-    return v;
+  ticketPanelChannelId: () => {
+    const env = process.env.TICKET_PANEL_CHANNEL_ID;
+    if (env != null && String(env).trim() !== '') return String(env).trim();
+    const v = readTicketField('panelChannelId', 'ticketPanelChannelId');
+    if (v === undefined || v === null) return null;
+    const s = String(v).trim();
+    return s !== '' ? s : null;
   },
 
-  staffRoleId: () => pick('staffRoleId', 'STAFF_ROLE_ID') || null,
+  ticketCategoryId: () => {
+    const env = process.env.TICKET_CATEGORY_ID;
+    if (env != null && String(env).trim() !== '') return String(env).trim();
+    const v = readTicketField('categoryId', 'ticketCategoryId');
+    const s = v != null ? String(v).trim() : '';
+    if (!s) {
+      throw new Error(
+        'Defina ticket.categoryId em config.json (ou ticketCategoryId na raiz) ou TICKET_CATEGORY_ID no ambiente.'
+      );
+    }
+    return s;
+  },
 
-  ticketLogChannelId: () =>
-    pick('ticketLogChannelId', 'TICKET_LOG_CHANNEL_ID') || null,
+  staffRoleId: () => {
+    const env = process.env.STAFF_ROLE_ID;
+    if (env != null && String(env).trim() !== '') return String(env).trim();
+    const v = readTicketField('staffRoleId', 'staffRoleId');
+    if (v === undefined || v === null) return null;
+    const s = String(v).trim();
+    return s !== '' ? s : null;
+  },
 
-  ticketEmbedColor: () =>
-    pickNum('ticketEmbedColor', 'TICKET_EMBED_COLOR', 15158332, {
-      min: 0,
-      max: 0xffffff,
-    }),
+  ticketLogChannelId: () => {
+    const env = process.env.TICKET_LOG_CHANNEL_ID;
+    if (env != null && String(env).trim() !== '') return String(env).trim();
+    const v = readTicketField('logChannelId', 'ticketLogChannelId');
+    if (v === undefined || v === null) return null;
+    const s = String(v).trim();
+    return s !== '' ? s : null;
+  },
+
+  ticketEmbedColor: () => {
+    let n = NaN;
+    const env = process.env.TICKET_EMBED_COLOR;
+    if (env != null && String(env).trim() !== '') {
+      n = parseInt(String(env).trim(), 10);
+    } else {
+      const v = readTicketField('embedColor', 'ticketEmbedColor');
+      if (v !== undefined && v !== null && v !== '') {
+        n = typeof v === 'number' ? v : parseInt(String(v), 10);
+      }
+    }
+    if (!Number.isFinite(n)) n = 15158332;
+    if (n < 0) n = 0;
+    if (n > 0xffffff) n = 0xffffff;
+    return n;
+  },
+
+  /** URL da imagem grande (banner) do painel de tickets — vazio omite a imagem. */
+  ticketPanelBannerUrl: () => {
+    const env = process.env.TICKET_PANEL_BANNER_URL;
+    if (env != null && String(env).trim() !== '') return String(env).trim();
+    const v = readTicketField('panelBannerUrl', 'ticketPanelBannerUrl');
+    if (v === undefined || v === null) return null;
+    const s = String(v).trim();
+    return s !== '' ? s : null;
+  },
+
+  /** Texto do rodapé do embed do painel (ex.: domínio). */
+  ticketPanelFooterText: () => {
+    const env = process.env.TICKET_PANEL_FOOTER_TEXT;
+    if (env != null && String(env).trim() !== '') return String(env).trim();
+    const v = readTicketField('panelFooterText', 'ticketPanelFooterText');
+    if (v === undefined || v === null) return 'SavageMC';
+    const s = String(v).trim();
+    return s !== '' ? s : 'SavageMC';
+  },
 
   discordLogChannelId: () =>
     pick('discordLogChannelId', 'DISCORD_LOG_CHANNEL_ID') || null,

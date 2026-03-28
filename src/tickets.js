@@ -26,6 +26,7 @@ const TICKET_TYPE_LABELS = {
   bugs: 'Bugs',
   denuncia: 'Denúncia',
   suporte: 'Suporte',
+  solicitar_tag: 'Solicitar Tag',
 };
 
 function isStaff(member) {
@@ -56,6 +57,7 @@ async function refreshTicketWelcomeMessage(channel) {
     ticketId: meta.ticketIdNum,
     minecraftNick: meta.minecraftNick,
     reportedNick: meta.reportedNick,
+    channelLink: meta.channelLink,
     claimedById: meta.claimedById || null,
   });
   const msg = await channel.messages.fetch(meta.welcomeMessageId).catch(() => null);
@@ -134,6 +136,11 @@ async function runTicketInfo(interaction) {
     meta?.reportedNick && String(meta.reportedNick).trim()
       ? `\`${meta.reportedNick}\``
       : '—';
+  let linkCanal = '—';
+  if (meta?.channelLink && String(meta.channelLink).trim()) {
+    const cl = String(meta.channelLink).trim();
+    linkCanal = cl.length > 1024 ? cl.slice(0, 1021) + '…' : cl;
+  }
   let criado = '—';
   if (meta?.createdAt) {
     try {
@@ -154,7 +161,8 @@ async function runTicketInfo(interaction) {
       { name: 'Assumido por', value: claimedLine, inline: true },
       { name: 'Criado', value: criado, inline: true },
       { name: 'Nick Minecraft', value: nick, inline: true },
-      { name: 'Denunciado (nick)', value: reported, inline: true }
+      { name: 'Denunciado (nick)', value: reported, inline: true },
+      { name: 'Link do canal', value: linkCanal, inline: false }
     )
     .setFooter(footer())
     .setTimestamp();
@@ -259,6 +267,13 @@ function safeNickForDisplay(raw) {
     .trim()
     .replace(/`/g, "'")
     .slice(0, 16);
+}
+
+function safeChannelLink(raw) {
+  return String(raw || '')
+    .trim()
+    .replace(/`/g, "'")
+    .slice(0, 500);
 }
 
 /** Segmento válido para nome de canal Discord (minúsculas, números, hífens). */
@@ -425,6 +440,13 @@ async function createTicketChannel(guild, user, meta) {
   if (meta.reportedNick) {
     topic += ` · denunciado \`${meta.reportedNick}\``;
   }
+  if (meta.channelLink) {
+    const short =
+      meta.channelLink.length > 120
+        ? `${meta.channelLink.slice(0, 117)}...`
+        : meta.channelLink;
+    topic += ` · canal: ${short}`;
+  }
   if (topic.length > 1024) topic = topic.slice(0, 1021) + '...';
 
   const channel = await guild.channels.create({
@@ -447,6 +469,7 @@ async function createTicketChannel(guild, user, meta) {
     ticketId,
     minecraftNick: meta.minecraftNick,
     reportedNick: meta.reportedNick,
+    channelLink: meta.channelLink,
     claimedById: null,
   });
 
@@ -466,6 +489,7 @@ async function createTicketChannel(guild, user, meta) {
     ticketIdNum: ticketId,
     minecraftNick: meta.minecraftNick,
     reportedNick: meta.reportedNick || null,
+    channelLink: meta.channelLink || null,
     claimedById: null,
     createdAt: new Date().toISOString(),
   });
@@ -509,6 +533,21 @@ async function handleSelectMenu(interaction) {
     );
   }
 
+  if (value === 'solicitar_tag') {
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('channel_link')
+          .setLabel('Link do canal')
+          .setStyle(TextInputStyle.Paragraph)
+          .setPlaceholder('Cole o link do seu canal')
+          .setRequired(true)
+          .setMinLength(12)
+          .setMaxLength(500)
+      )
+    );
+  }
+
   return interaction.showModal(modal);
 }
 
@@ -533,6 +572,13 @@ async function handleModalSubmit(interaction) {
     );
   }
 
+  let channelLink = null;
+  if (ticketType === 'solicitar_tag') {
+    channelLink = safeChannelLink(
+      interaction.fields.getTextInputValue('channel_link')
+    );
+  }
+
   if (minecraftNick.length < 3) {
     return interaction.reply({
       flags: MessageFlags.Ephemeral,
@@ -544,6 +590,26 @@ async function handleModalSubmit(interaction) {
       flags: MessageFlags.Ephemeral,
       content: 'Informe o nick de quem você está denunciando (mínimo 3 caracteres).',
     });
+  }
+  if (ticketType === 'solicitar_tag') {
+    if (!channelLink || channelLink.length < 12) {
+      return interaction.reply({
+        flags: MessageFlags.Ephemeral,
+        content: 'Cole o **link do canal** (mínimo 12 caracteres).',
+      });
+    }
+    try {
+      const u = new URL(channelLink);
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') {
+        throw new Error('protocol');
+      }
+    } catch {
+      return interaction.reply({
+        flags: MessageFlags.Ephemeral,
+        content:
+          'O link do canal deve ser válido (começar com **https://** ou **http://**, ex.: link do Discord).',
+      });
+    }
   }
 
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
@@ -565,6 +631,7 @@ async function handleModalSubmit(interaction) {
       ticketType,
       minecraftNick,
       reportedNick,
+      channelLink,
     });
     return interaction.editReply({
       content: `Ticket criado: ${channel}`,
@@ -628,6 +695,8 @@ async function handleSlash(interaction) {
       accentColor: config.ticketEmbedColor(),
       guildName: guild?.name ?? undefined,
       guildIconUrl: guild?.iconURL({ size: 256, extension: 'png' }) ?? null,
+      bannerUrl: config.ticketPanelBannerUrl(),
+      footerText: config.ticketPanelFooterText(),
     });
 
     const ch = interaction.channel;
@@ -815,7 +884,7 @@ async function handleSlash(interaction) {
     );
     const sorted = [...children.values()].sort((a, b) => a.name.localeCompare(b.name));
     const lines = sorted.slice(0, 40).map((c) => `• ${c}`);
-    const       extra =
+    const extra =
       sorted.length > 40 ? `\n_… e mais ${sorted.length - 40}._` : '';
     return interaction.reply({
       flags: MessageFlags.Ephemeral,
