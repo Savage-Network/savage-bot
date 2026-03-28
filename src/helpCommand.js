@@ -33,7 +33,8 @@ async function handleHelp(interaction) {
         name: 'Dev (canaisDEV)',
         value:
           '`/dev voice` — bot entra na call (`devVoiceChannelId` ou `voiceChannelId`)\n' +
-          '`/dev anotar` — envia anotação para o teu `idCanal` (só IDs em `canaisDEV`)',
+          '`/dev anotar` — envia anotação para o teu `idCanal` (só IDs em `canaisDEV`)\n' +
+          '`/dev commit` — modal Sistema + Atualizações → `devCommitChannelId`',
       },
       {
         name: 'Automático (config)',

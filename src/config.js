@@ -204,4 +204,8 @@ module.exports = {
 
   /** Canal de voz para `/dev voice` (independente de voiceEnabled). */
   devVoiceChannelId: () => pick('devVoiceChannelId', 'DEV_VOICE_CHANNEL_ID') || null,
+
+  /** Canal de texto para registos `/dev commit`. */
+  devCommitChannelId: () =>
+    pick('devCommitChannelId', 'DEV_COMMIT_CHANNEL_ID') || null,
 };

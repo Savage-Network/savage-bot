@@ -23,7 +23,7 @@ const { startDiscordLogging } = require('./discordLogger');
 const { handleCanal } = require('./canalCommand');
 const { registerAutorole } = require('./autorole');
 const { registerAutoResponses } = require('./autoResponses');
-const { handleDev } = require('./devCommand');
+const { handleDev, handleDevCommitModal } = require('./devCommand');
 
 const BOT_STARTED_AT_MS = Date.now();
 
@@ -81,6 +81,9 @@ function createClient() {
         return tickets.handleSelectMenu(interaction);
       }
       if (interaction.isModalSubmit()) {
+        if (interaction.customId === 'dev_commit_modal') {
+          return handleDevCommitModal(interaction);
+        }
         return tickets.handleModalSubmit(interaction);
       }
       if (interaction.isButton()) {
@@ -189,6 +192,11 @@ async function registerSlashCommands() {
               .setRequired(true)
               .setMaxLength(4000)
           )
+      )
+      .addSubcommand((s) =>
+        s
+          .setName('commit')
+          .setDescription('Formulário de commit (Sistema e Atualizações → canal commit)')
       )
       .toJSON(),
     new SlashCommandBuilder()
