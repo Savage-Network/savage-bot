@@ -5,10 +5,18 @@
  * Requer no servidor: **Ver registro de auditoria** (View Audit Log) para `guildAuditLogEntryCreate`.
  */
 
-const { EmbedBuilder } = require('discord.js');
+const { MessageFlags } = require('discord.js');
 const { AuditLogEvent } = require('discord-api-types/v10');
 const config = require('./config');
 const { footer } = require('./embedCopyright');
+const {
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  SectionBuilder,
+  ThumbnailBuilder,
+  footerTimestampLine,
+} = require('./v2Helpers');
 
 const LOG_COLOR_AUDIT = 0x5865f2;
 const LOG_COLOR_MSG = 0x57f287;
@@ -22,6 +30,8 @@ const LOG_COLOR_REACTION = 0x3498db;
 
 const MAX_FIELD = 1024;
 const MAX_DESC = 3900;
+
+const V2 = MessageFlags.IsComponentsV2;
 
 let sendChain = Promise.resolve();
 
@@ -38,7 +48,7 @@ function truncate(str, max = MAX_FIELD) {
   return s.slice(0, max - 3) + '...';
 }
 
-function enqueueSend(client, buildEmbed) {
+function enqueueSend(client, buildContainer) {
   sendChain = sendChain
     .then(async () => {
       const id = config.discordLogChannelId();
@@ -46,9 +56,9 @@ function enqueueSend(client, buildEmbed) {
       let ch = client.channels.cache.get(id);
       if (!ch) ch = await client.channels.fetch(id).catch(() => null);
       if (!ch || !ch.isTextBased()) return;
-      const embed = await Promise.resolve(buildEmbed());
-      if (!embed) return;
-      await ch.send({ embeds: [embed] }).catch((e) => {
+      const container = await Promise.resolve(buildContainer());
+      if (!container) return;
+      await ch.send({ flags: V2, components: [container] }).catch((e) => {
         console.error('[discordLog] Falha ao enviar:', e?.message || e);
       });
       await new Promise((r) => setTimeout(r, 350));
@@ -76,7 +86,7 @@ function formatTarget(entry) {
   return truncate(JSON.stringify(t), 200);
 }
 
-/** Evita "null" no embed quando a API devolve executor parcial (sem tag). */
+/** Evita "null" no log quando a API devolve executor parcial (sem tag). */
 async function formatAuditExecutor(entry, client) {
   const id = entry.executorId ?? entry.executor?.id;
   if (!id) return '—';
@@ -132,36 +142,39 @@ function formatExtra(entry) {
   }
 }
 
-function buildAuditEmbed(entry, guild, executorDisplay) {
+function buildAuditContainer(entry, guild, executorDisplay) {
   const actionName = resolveAuditActionName(entry.action);
   const exec =
     executorDisplay ??
     (entry.executorId ? `\`${entry.executorId}\`` : '—');
 
-  const embed = new EmbedBuilder()
-    .setColor(LOG_COLOR_AUDIT)
-    .setTitle(`📋 Auditoria · ${actionName}`)
-    .setDescription(`**Tipo:** ${entry.actionType} · **Alvo:** ${entry.targetType}`)
-    .addFields(
-      { name: 'Executor', value: truncate(exec, MAX_FIELD), inline: true },
-      { name: 'Alvo', value: truncate(formatTarget(entry), MAX_FIELD), inline: true }
-    )
-    .setTimestamp();
+  let main =
+    `## 📋 Auditoria · ${actionName}\n\n` +
+    `**Tipo:** ${entry.actionType} · **Alvo:** ${entry.targetType}\n\n` +
+    `**Executor** · ${truncate(exec, MAX_FIELD)}\n` +
+    `**Alvo** · ${truncate(formatTarget(entry), MAX_FIELD)}`;
 
   const ch = formatChanges(entry.changes);
   if (ch && ch !== '—') {
-    embed.addFields({ name: 'Alterações', value: ch });
+    main += `\n\n**Alterações**\n${ch}`;
   }
 
   const ex = formatExtra(entry);
-  if (ex) embed.addFields({ name: 'Extra', value: truncate(ex, MAX_FIELD) });
+  if (ex) main += `\n\n**Extra**\n${truncate(ex, MAX_FIELD)}`;
 
   if (entry.reason) {
-    embed.addFields({ name: 'Motivo', value: truncate(entry.reason, MAX_FIELD) });
+    main += `\n\n**Motivo**\n${truncate(entry.reason, MAX_FIELD)}`;
   }
 
-  embed.setFooter(footer({ text: guild.name }));
-  return embed;
+  return new ContainerBuilder()
+    .setAccentColor(LOG_COLOR_AUDIT)
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(main.slice(0, 3800)))
+    .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        footerTimestampLine(footer({ text: guild.name }).text)
+      )
+    );
 }
 
 function startDiscordLogging(client) {
@@ -176,48 +189,54 @@ function startDiscordLogging(client) {
     if (!shouldLogGuild(guild)) return;
     enqueueSend(client, async () => {
       const executorDisplay = await formatAuditExecutor(entry, guild.client);
-      return buildAuditEmbed(entry, guild, executorDisplay);
+      return buildAuditContainer(entry, guild, executorDisplay);
     });
   });
 
   client.on('guildMemberAdd', (member) => {
     if (!shouldLogGuild(member.guild)) return;
-    enqueueSend(client, () =>
-      new EmbedBuilder()
-        .setColor(LOG_COLOR_MEMBER)
-        .setTitle('➕ Membro entrou')
-        .setDescription(`${member.user.tag} (\`${member.user.id}\`)`)
-        .addFields({
-          name: 'Conta criada',
-          value: `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`,
-          inline: true,
-        })
-        .setThumbnail(member.user.displayAvatarURL({ size: 128 }))
-        .setFooter(footer())
-        .setTimestamp()
-    );
+    enqueueSend(client, () => {
+      const avatarUrl = member.user.displayAvatarURL({ size: 128 });
+      const body =
+        `## ➕ Membro entrou\n\n${member.user.tag} (\`${member.user.id}\`)\n\n` +
+        `**Conta criada** · <t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`;
+      const section = new SectionBuilder()
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(body))
+        .setThumbnailAccessory(
+          new ThumbnailBuilder()
+            .setURL(avatarUrl)
+            .setDescription(member.user.tag)
+        );
+      return new ContainerBuilder()
+        .setAccentColor(LOG_COLOR_MEMBER)
+        .addSectionComponents(section)
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(footerTimestampLine(footer().text))
+        );
+    });
   });
 
   client.on('guildMemberRemove', (member) => {
     if (!shouldLogGuild(member.guild)) return;
-    enqueueSend(client, () =>
-      new EmbedBuilder()
-        .setColor(LOG_COLOR_LEAVE)
-        .setTitle('➖ Membro saiu')
-        .setDescription(`${member.user.tag} (\`${member.user.id}\`)`)
-        .addFields(
-          {
-            name: 'Entrou no servidor',
-            value: member.joinedAt
-              ? `<t:${Math.floor(member.joinedAt.getTime() / 1000)}:R>`
-              : '—',
-            inline: true,
-          },
-          { name: 'Cargos', value: truncate(member.roles.cache.map((r) => r.name).join(', ') || '—', MAX_FIELD) }
-        )
-        .setFooter(footer())
-        .setTimestamp()
-    );
+    enqueueSend(client, () => {
+      const text =
+        '## ➖ Membro saiu\n\n' +
+        `${member.user.tag} (\`${member.user.id}\`)\n\n` +
+        `**Entrou no servidor** · ${
+          member.joinedAt
+            ? `<t:${Math.floor(member.joinedAt.getTime() / 1000)}:R>`
+            : '—'
+        }\n\n` +
+        `**Cargos** · ${truncate(member.roles.cache.map((r) => r.name).join(', ') || '—', MAX_FIELD)}`;
+      return new ContainerBuilder()
+        .setAccentColor(LOG_COLOR_LEAVE)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(text))
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(footerTimestampLine(footer().text))
+        );
+    });
   });
 
   client.on('messageUpdate', (oldMsg, newMsg) => {
@@ -227,58 +246,94 @@ function startDiscordLogging(client) {
       return;
     const oldC = oldMsg.content || '_(vazio ou não em cache)_';
     const newC = newMsg.content || '_(vazio)_';
-    enqueueSend(client, () =>
-      new EmbedBuilder()
-        .setColor(LOG_COLOR_MSG_EDIT)
-        .setTitle('✏️ Mensagem editada')
-        .setAuthor({
-          name: newMsg.author?.tag || 'Desconhecido',
-          iconURL: newMsg.author?.displayAvatarURL({ size: 64 }) ?? undefined,
-        })
-        .addFields(
-          { name: 'Canal', value: `${newMsg.channel}`, inline: true },
-          { name: 'ID da mensagem', value: `\`${newMsg.id}\``, inline: true },
-          { name: 'Antes', value: truncate(oldC, MAX_FIELD) },
-          { name: 'Depois', value: truncate(newC, MAX_FIELD) }
-        )
-        .setFooter(footer())
-        .setTimestamp()
-    );
+    const authorTag = newMsg.author?.tag || 'Desconhecido';
+    const iconUrl = newMsg.author?.displayAvatarURL({ size: 64 });
+    enqueueSend(client, () => {
+      const main =
+        `## ✏️ Mensagem editada\n\n` +
+        `**${authorTag}**\n\n` +
+        `**Canal** · ${newMsg.channel}\n` +
+        `**ID da mensagem** · \`${newMsg.id}\`\n\n` +
+        `**Antes**\n${truncate(oldC, MAX_FIELD)}\n\n` +
+        `**Depois**\n${truncate(newC, MAX_FIELD)}`;
+      let c = new ContainerBuilder()
+        .setAccentColor(LOG_COLOR_MSG_EDIT)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(main));
+      if (iconUrl) {
+        const section = new SectionBuilder()
+          .addTextDisplayComponents(new TextDisplayBuilder().setContent(main))
+          .setThumbnailAccessory(
+            new ThumbnailBuilder().setURL(iconUrl).setDescription(authorTag)
+          );
+        c = new ContainerBuilder()
+          .setAccentColor(LOG_COLOR_MSG_EDIT)
+          .addSectionComponents(section)
+          .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(footerTimestampLine(footer().text))
+          );
+        return c;
+      }
+      return c
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(footerTimestampLine(footer().text))
+        );
+    });
   });
 
   client.on('messageDelete', (message) => {
     if (!message.guild || !shouldLogGuild(message.guild)) return;
     if (message.author?.bot && !config.discordLogBotMessages()) return;
     const content = message.content || '_(sem texto — só anexos/embeds ou não em cache)_';
-    enqueueSend(client, () =>
-      new EmbedBuilder()
-        .setColor(LOG_COLOR_MSG_DEL)
-        .setTitle('🗑️ Mensagem excluída')
-        .setAuthor({
-          name: message.author?.tag || 'Desconhecido',
-          iconURL: message.author?.displayAvatarURL({ size: 64 }) ?? undefined,
-        })
-        .addFields(
-          { name: 'Canal', value: `${message.channel}`, inline: true },
-          { name: 'ID', value: `\`${message.id}\``, inline: true },
-          { name: 'Conteúdo', value: truncate(content, MAX_FIELD) }
-        )
-        .setFooter(footer())
-        .setTimestamp()
-    );
+    const authorTag = message.author?.tag || 'Desconhecido';
+    const iconUrl = message.author?.displayAvatarURL({ size: 64 });
+    enqueueSend(client, () => {
+      const main =
+        '## 🗑️ Mensagem excluída\n\n' +
+        `**${authorTag}**\n\n` +
+        `**Canal** · ${message.channel}\n` +
+        `**ID** · \`${message.id}\`\n\n` +
+        `**Conteúdo**\n${truncate(content, MAX_FIELD)}`;
+      if (iconUrl) {
+        const section = new SectionBuilder()
+          .addTextDisplayComponents(new TextDisplayBuilder().setContent(main))
+          .setThumbnailAccessory(
+            new ThumbnailBuilder().setURL(iconUrl).setDescription(authorTag)
+          );
+        return new ContainerBuilder()
+          .setAccentColor(LOG_COLOR_MSG_DEL)
+          .addSectionComponents(section)
+          .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(footerTimestampLine(footer().text))
+          );
+      }
+      return new ContainerBuilder()
+        .setAccentColor(LOG_COLOR_MSG_DEL)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(main))
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(footerTimestampLine(footer().text))
+        );
+    });
   });
 
   client.on('messageDeleteBulk', (messages) => {
     const first = messages.first();
     if (!first?.guild || !shouldLogGuild(first.guild)) return;
-    enqueueSend(client, () =>
-      new EmbedBuilder()
-        .setColor(LOG_COLOR_MSG_DEL)
-        .setTitle('🗑️ Mensagens excluídas em massa')
-        .setDescription(`**${messages.size}** mensagens em ${first.channel}`)
-        .setFooter(footer())
-        .setTimestamp()
-    );
+    enqueueSend(client, () => {
+      const text =
+        '## 🗑️ Mensagens excluídas em massa\n\n' +
+        `**${messages.size}** mensagens em ${first.channel}`;
+      return new ContainerBuilder()
+        .setAccentColor(LOG_COLOR_MSG_DEL)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(text))
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(footerTimestampLine(footer().text))
+        );
+    });
   });
 
   client.on('voiceStateUpdate', (oldS, newS) => {
@@ -306,14 +361,17 @@ function startDiscordLogging(client) {
       return;
     }
 
-    enqueueSend(client, () =>
-      new EmbedBuilder()
-        .setColor(LOG_COLOR_VOICE)
-        .setTitle(title)
-        .setDescription(`**${uid}** (\`${member.id}\`)\n${detail}`)
-        .setFooter(footer())
-        .setTimestamp()
-    );
+    enqueueSend(client, () => {
+      const text =
+        `## ${title}\n\n` + `**${uid}** (\`${member.id}\`)\n${detail}`;
+      return new ContainerBuilder()
+        .setAccentColor(LOG_COLOR_VOICE)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(text))
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(footerTimestampLine(footer().text))
+        );
+    });
   });
 
   client.on('interactionCreate', (interaction) => {
@@ -323,18 +381,20 @@ function startDiscordLogging(client) {
     const cmd = `/${interaction.commandName}`;
     const sub = interaction.options?.getSubcommand(false);
     const full = sub ? `${cmd} ${sub}` : cmd;
-    enqueueSend(client, () =>
-      new EmbedBuilder()
-        .setColor(LOG_COLOR_CMD)
-        .setTitle('⌨️ Comando')
-        .setDescription(`**${full}**`)
-        .addFields(
-          { name: 'Usuário', value: `${user} (\`${interaction.user.id}\`)`, inline: true },
-          { name: 'Canal', value: `${interaction.channel || '—'}`, inline: true }
-        )
-        .setFooter(footer())
-        .setTimestamp()
-    );
+    enqueueSend(client, () => {
+      const text =
+        '## ⌨️ Comando\n\n' +
+        `**${full}**\n\n` +
+        `**Usuário** · ${user} (\`${interaction.user.id}\`)\n` +
+        `**Canal** · ${interaction.channel || '—'}`;
+      return new ContainerBuilder()
+        .setAccentColor(LOG_COLOR_CMD)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(text))
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(footerTimestampLine(footer().text))
+        );
+    });
   });
 
   if (config.discordLogMessageCreate()) {
@@ -342,21 +402,36 @@ function startDiscordLogging(client) {
       if (!message.guild || !shouldLogGuild(message.guild)) return;
       if (message.author?.bot && !config.discordLogBotMessages()) return;
       const text = message.content || '_(anexo/embed)_';
-      enqueueSend(client, () =>
-        new EmbedBuilder()
-          .setColor(LOG_COLOR_MSG)
-          .setTitle('💬 Mensagem nova')
-          .setAuthor({
-            name: message.author?.tag || '?',
-            iconURL: message.author?.displayAvatarURL({ size: 64 }) ?? undefined,
-          })
-          .addFields(
-            { name: 'Canal', value: `${message.channel}`, inline: true },
-            { name: 'Texto', value: truncate(text, MAX_FIELD) }
-          )
-          .setFooter(footer())
-          .setTimestamp()
-      );
+      const tag = message.author?.tag || '?';
+      const iconUrl = message.author?.displayAvatarURL({ size: 64 });
+      enqueueSend(client, () => {
+        const main =
+          '## 💬 Mensagem nova\n\n' +
+          `**${tag}**\n\n` +
+          `**Canal** · ${message.channel}\n\n` +
+          `**Texto**\n${truncate(text, MAX_FIELD)}`;
+        if (iconUrl) {
+          const section = new SectionBuilder()
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(main))
+            .setThumbnailAccessory(
+              new ThumbnailBuilder().setURL(iconUrl).setDescription(tag)
+            );
+          return new ContainerBuilder()
+            .setAccentColor(LOG_COLOR_MSG)
+            .addSectionComponents(section)
+            .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
+            .addTextDisplayComponents(
+              new TextDisplayBuilder().setContent(footerTimestampLine(footer().text))
+            );
+        }
+        return new ContainerBuilder()
+          .setAccentColor(LOG_COLOR_MSG)
+          .addTextDisplayComponents(new TextDisplayBuilder().setContent(main))
+          .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(footerTimestampLine(footer().text))
+          );
+      });
     });
   }
 
@@ -367,16 +442,18 @@ function startDiscordLogging(client) {
       const emoji = reaction.emoji.id
         ? `<:${reaction.emoji.name}:${reaction.emoji.id}>`
         : reaction.emoji.name;
-      enqueueSend(client, () =>
-        new EmbedBuilder()
-          .setColor(LOG_COLOR_REACTION)
-          .setTitle('➕ Reação adicionada')
-          .setDescription(
-            `${user.tag} → ${emoji} em ${reaction.message.channel}\nMensagem: \`${reaction.message.id}\``
-          )
-          .setFooter(footer())
-          .setTimestamp()
-      );
+      enqueueSend(client, () => {
+        const text =
+          '## ➕ Reação adicionada\n\n' +
+          `${user.tag} → ${emoji} em ${reaction.message.channel}\nMensagem: \`${reaction.message.id}\``;
+        return new ContainerBuilder()
+          .setAccentColor(LOG_COLOR_REACTION)
+          .addTextDisplayComponents(new TextDisplayBuilder().setContent(text))
+          .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(footerTimestampLine(footer().text))
+          );
+      });
     });
 
     client.on('messageReactionRemove', (reaction, user) => {
@@ -384,16 +461,18 @@ function startDiscordLogging(client) {
       const emoji = reaction.emoji.id
         ? `<:${reaction.emoji.name}:${reaction.emoji.id}>`
         : reaction.emoji.name;
-      enqueueSend(client, () =>
-        new EmbedBuilder()
-          .setColor(LOG_COLOR_REACTION)
-          .setTitle('➖ Reação removida')
-          .setDescription(
-            `${user.tag} → ${emoji} em ${reaction.message.channel}\nMensagem: \`${reaction.message.id}\``
-          )
-          .setFooter(footer())
-          .setTimestamp()
-      );
+      enqueueSend(client, () => {
+        const text =
+          '## ➖ Reação removida\n\n' +
+          `${user.tag} → ${emoji} em ${reaction.message.channel}\nMensagem: \`${reaction.message.id}\``;
+        return new ContainerBuilder()
+          .setAccentColor(LOG_COLOR_REACTION)
+          .addTextDisplayComponents(new TextDisplayBuilder().setContent(text))
+          .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(footerTimestampLine(footer().text))
+          );
+      });
     });
   }
 }

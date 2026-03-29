@@ -9,12 +9,18 @@ const {
   TextInputBuilder,
   TextInputStyle,
   ActionRowBuilder,
-  EmbedBuilder,
 } = require('discord.js');
 const config = require('./config');
 const storage = require('./storage');
 const { buildTicketPanel, buildTicketWelcome } = require('./ticketComponentsV2');
 const { footer } = require('./embedCopyright');
+const {
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  V2_FLAGS,
+  footerTimestampLine,
+} = require('./v2Helpers');
 
 const BTN_CLOSE = 'savage_ticket_close';
 const BTN_ASSUME = 'savage_ticket_assume';
@@ -94,13 +100,21 @@ async function runAssumeTicket(interaction) {
   const metaAfter = storage.getTicketMeta(interaction.channel.id);
   await refreshTicketWelcomeMessage(interaction.channel);
   if (!metaAfter?.welcomeMessageId) {
-    const embed = new EmbedBuilder()
-      .setColor(config.ticketEmbedColor())
-      .setTitle('Ticket assumido')
-      .setDescription(`${interaction.user} assumiu este ticket e vai acompanhá-lo.`)
-      .setFooter(footer({ text: interaction.user.tag }))
-      .setTimestamp();
-    await interaction.channel.send({ embeds: [embed] });
+    const c = new ContainerBuilder()
+      .setAccentColor(config.ticketEmbedColor())
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          '## Ticket assumido\n\n' +
+            `${interaction.user} assumiu este ticket e vai acompanhá-lo.`
+        )
+      )
+      .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          footerTimestampLine(footer({ text: interaction.user.tag }).text)
+        )
+      );
+    await interaction.channel.send({ flags: V2_FLAGS.public, components: [c] });
   }
   return interaction.reply({
     flags: MessageFlags.Ephemeral,
@@ -150,26 +164,29 @@ async function runTicketInfo(interaction) {
     }
   }
 
-  const embed = new EmbedBuilder()
-    .setColor(config.ticketEmbedColor())
-    .setTitle('Informação do ticket')
-    .addFields(
-      { name: 'ID', value: idStr, inline: true },
-      { name: 'Tipo', value: tipo, inline: true },
-      { name: 'Canal', value: `\`${interaction.channel.name}\``, inline: true },
-      { name: 'Dono', value: ownerLine, inline: true },
-      { name: 'Assumido por', value: claimedLine, inline: true },
-      { name: 'Criado', value: criado, inline: true },
-      { name: 'Nick Minecraft', value: nick, inline: true },
-      { name: 'Denunciado (nick)', value: reported, inline: true },
-      { name: 'Link do canal', value: linkCanal, inline: false }
-    )
-    .setFooter(footer())
-    .setTimestamp();
+  const infoBody =
+    '## Informação do ticket\n\n' +
+    `**ID** · ${idStr}\n` +
+    `**Tipo** · ${tipo}\n` +
+    `**Canal** · \`${interaction.channel.name}\`\n` +
+    `**Dono** · ${ownerLine}\n` +
+    `**Assumido por** · ${claimedLine}\n` +
+    `**Criado** · ${criado}\n` +
+    `**Nick Minecraft** · ${nick}\n` +
+    `**Denunciado (nick)** · ${reported}\n` +
+    `**Link do canal**\n${linkCanal}`;
+
+  const c = new ContainerBuilder()
+    .setAccentColor(config.ticketEmbedColor())
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(infoBody))
+    .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(footerTimestampLine(footer().text))
+    );
 
   return interaction.reply({
-    embeds: [embed],
-    flags: MessageFlags.Ephemeral,
+    flags: V2_FLAGS.ephemeral,
+    components: [c],
   });
 }
 
@@ -911,13 +928,23 @@ async function handleSlash(interaction) {
     }
     const texto = interaction.options.getString('texto', true).trim().slice(0, 1000);
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-    const embed = new EmbedBuilder()
-      .setColor(0xfaa61a)
-      .setTitle('Nota da equipe')
-      .setDescription(texto)
-      .setFooter(footer({ text: interaction.user.tag }))
-      .setTimestamp();
-    await interaction.channel.send({ embeds: [embed] });
+    const noteContainer = new ContainerBuilder()
+      .setAccentColor(0xfaa61a)
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          '## Nota da equipe\n\n' + texto
+        )
+      )
+      .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          footerTimestampLine(footer({ text: interaction.user.tag }).text)
+        )
+      );
+    await interaction.channel.send({
+      flags: V2_FLAGS.public,
+      components: [noteContainer],
+    });
     return interaction.editReply({ content: 'Nota publicada no ticket.' });
   }
 }

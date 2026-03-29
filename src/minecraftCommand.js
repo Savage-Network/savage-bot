@@ -1,9 +1,15 @@
 'use strict';
 
-const { EmbedBuilder } = require('discord.js');
 const config = require('./config');
 const { fetchMcStatus } = require('./mcPresence');
 const { footer } = require('./embedCopyright');
+const {
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  V2_FLAGS,
+  footerTimestampLine,
+} = require('./v2Helpers');
 
 function textoJogadores(online, max) {
   const o = Math.max(0, Math.floor(Number(online)) || 0);
@@ -20,46 +26,39 @@ async function handleMinecraft(interaction) {
   const addr = host;
   const s = await fetchMcStatus();
 
-  const embed = new EmbedBuilder()
-    .setColor(config.ticketEmbedColor())
-    .setTitle('SavageMC · conectar ao servidor')
-    .setDescription(
-      `**Endereço:**\n\`\`\`\n${addr}\n\`\`\`\n` +
-        '_Copie o texto acima para o seu cliente Minecraft (Java)._'
-    );
+  let main =
+    '## SavageMC · conectar ao servidor\n\n' +
+    `**Endereço**\n\`\`\`\n${addr}\n\`\`\`\n` +
+    '_Copie o texto acima para o seu cliente Minecraft (Java)._';
+
+  let footLine;
   if (s.ok) {
-    embed.addFields(
-      {
-        name: 'Status',
-        value: 'Online',
-        inline: true,
-      },
-      {
-        name: 'Jogadores',
-        value: textoJogadores(s.online, s.max),
-        inline: true,
-      },
-      {
-        name: 'Versão',
-        value: String(s.version),
-        inline: true,
-      }
-    );
-    if (s.latencyMs != null) {
-      embed.setFooter(footer({ text: `Ping lista ~${s.latencyMs} ms` }));
-    } else {
-      embed.setFooter(footer());
-    }
+    main +=
+      `\n\n**Status** · Online\n` +
+      `**Jogadores** · ${textoJogadores(s.online, s.max)}\n` +
+      `**Versão** · ${String(s.version)}`;
+    footLine =
+      s.latencyMs != null
+        ? footerTimestampLine(
+            footer({ text: `Ping lista ~${s.latencyMs} ms` }).text
+          )
+        : footerTimestampLine(footer().text);
   } else {
-    embed.addFields({
-      name: 'Status',
-      value:
-        'Não foi possível confirmar (offline ou rede). Use `/status` para detalhes.',
-    });
-    embed.setFooter(footer());
+    main +=
+      '\n\n**Status** · Não foi possível confirmar (offline ou rede). Use `/status` para detalhes.';
+    footLine = footerTimestampLine(footer().text);
   }
 
-  await interaction.editReply({ embeds: [embed] });
+  const container = new ContainerBuilder()
+    .setAccentColor(config.ticketEmbedColor())
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(main))
+    .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(footLine));
+
+  await interaction.editReply({
+    flags: V2_FLAGS.public,
+    components: [container],
+  });
 }
 
 module.exports = { handleMinecraft };

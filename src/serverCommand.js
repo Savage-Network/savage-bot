@@ -1,8 +1,17 @@
 'use strict';
 
-const { EmbedBuilder, MessageFlags } = require('discord.js');
+const { MessageFlags } = require('discord.js');
 const config = require('./config');
 const { footer } = require('./embedCopyright');
+const {
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  SectionBuilder,
+  ThumbnailBuilder,
+  V2_FLAGS,
+  footerTimestampLine,
+} = require('./v2Helpers');
 
 async function handleServidor(interaction) {
   if (!interaction.guild) {
@@ -17,48 +26,48 @@ async function handleServidor(interaction) {
   await g.members.fetch({ withPresences: false }).catch(() => {});
 
   const owner = await g.fetchOwner().catch(() => null);
-  const embed = new EmbedBuilder()
-    .setColor(config.ticketEmbedColor())
-    .setTitle(g.name)
-    .setThumbnail(g.iconURL({ size: 256, extension: 'png' }))
-    .addFields(
-      {
-        name: 'Membros',
-        value: `${g.memberCount}`,
-        inline: true,
-      },
-      {
-        name: 'Boost',
-        value: `Nível ${g.premiumTier} · ${g.premiumSubscriptionCount} boosts`,
-        inline: true,
-      },
-      {
-        name: 'Canais',
-        value: `${g.channels.cache.size}`,
-        inline: true,
-      },
-      {
-        name: 'Criado',
-        value: `<t:${Math.floor(g.createdTimestamp / 1000)}:R>`,
-        inline: true,
-      }
-    )
-    .setFooter(footer())
-    .setTimestamp();
+  const iconUrl = g.iconURL({ size: 256, extension: 'png' });
+
+  let lines =
+    `## ${g.name}\n\n` +
+    `**Membros** · ${g.memberCount}\n` +
+    `**Boost** · Nível ${g.premiumTier} · ${g.premiumSubscriptionCount} boosts\n` +
+    `**Canais** · ${g.channels.cache.size}\n` +
+    `**Criado** · <t:${Math.floor(g.createdTimestamp / 1000)}:R>\n`;
 
   if (owner) {
-    embed.addFields({
-      name: 'Dono',
-      value: `${owner.user.tag}`,
-      inline: true,
-    });
+    lines += `**Dono** · ${owner.user.tag}\n`;
   }
-
   if (g.description) {
-    embed.setDescription(g.description.slice(0, 4096));
+    lines += `\n${g.description.slice(0, 2000)}\n`;
   }
 
-  await interaction.editReply({ embeds: [embed] });
+  const foot = footerTimestampLine(footer().text);
+  let container;
+
+  if (iconUrl) {
+    const section = new SectionBuilder()
+      .addTextDisplayComponents(new TextDisplayBuilder().setContent(lines))
+      .setThumbnailAccessory(
+        new ThumbnailBuilder().setURL(iconUrl).setDescription(g.name)
+      );
+    container = new ContainerBuilder()
+      .setAccentColor(config.ticketEmbedColor())
+      .addSectionComponents(section)
+      .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
+      .addTextDisplayComponents(new TextDisplayBuilder().setContent(foot));
+  } else {
+    container = new ContainerBuilder()
+      .setAccentColor(config.ticketEmbedColor())
+      .addTextDisplayComponents(new TextDisplayBuilder().setContent(lines))
+      .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
+      .addTextDisplayComponents(new TextDisplayBuilder().setContent(foot));
+  }
+
+  await interaction.editReply({
+    flags: V2_FLAGS.public,
+    components: [container],
+  });
 }
 
 module.exports = { handleServidor };

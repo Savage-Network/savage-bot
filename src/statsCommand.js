@@ -1,11 +1,18 @@
 'use strict';
 
-const { EmbedBuilder, MessageFlags } = require('discord.js');
+const { MessageFlags } = require('discord.js');
 const config = require('./config');
+const { discordColorFromTag } = require('./mcTagColors');
 const { footer } = require('./embedCopyright');
-
-/** Avatar 100px — https://mc-heads.net/ */
-const MC_HEADS_AVATAR_SIZE = 100;
+const {
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  SectionBuilder,
+  ThumbnailBuilder,
+  V2_FLAGS,
+  footerTimestampLine,
+} = require('./v2Helpers');
 
 /** Normaliza para UUID com hífenes (32 hex). */
 function normalizeMinecraftUuid(raw) {
@@ -31,7 +38,7 @@ function extractUuidFromPlayerPayload(data) {
   return candidates.find(Boolean) || null;
 }
 
-async function fetchPlayerUuidForNick(nick) {
+async function fetchPlayerForNick(nick) {
   const base = config.savageApiBaseUrl();
   const segment = encodeURIComponent(String(nick).trim());
   const url = `${base}/api/v1/jogadores/${segment}`;
@@ -48,8 +55,14 @@ async function fetchPlayerUuidForNick(nick) {
     } catch {
       return null;
     }
-    if (!res.ok) return null;
-    return extractUuidFromPlayerPayload(json);
+    if (!res.ok || !json || typeof json !== 'object' || json.erro) {
+      return null;
+    }
+    const uuid = extractUuidFromPlayerPayload(json);
+    const rawTag = json.tag != null ? String(json.tag).trim() : '';
+    const rawRank = json.rank != null ? String(json.rank).trim() : '';
+    const tag = rawTag || rawRank || null;
+    return { uuid, tag };
   } catch {
     return null;
   } finally {
@@ -64,46 +77,75 @@ async function handleStats(interaction) {
 
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-  const embed = new EmbedBuilder()
-    .setColor(config.ticketEmbedColor())
-    .setTitle('SavageMC · STATS')
-    .setFooter(footer());
+  const defaultAccent = config.ticketEmbedColor();
+  const foot = footerTimestampLine(footer().text);
 
   if (nick && String(nick).trim()) {
     const trimmed = String(nick).trim();
     const profileUrl = config.statsProfileUrlForNick(trimmed);
-    embed.setDescription(
-      `Perfil de **${trimmed}** no site de estatísticas.\n\n` +
-        `[Abrir perfil](${profileUrl})`
-    );
-    embed.addFields({
-      name: 'STATS geral',
-      value: `[stats.savagemc.net](${home})`,
-    });
-    const uuid = await fetchPlayerUuidForNick(trimmed);
-    if (uuid) {
-      embed.setThumbnail(
-        `https://mc-heads.net/avatar/${uuid}/100`
-      );
+    const player = await fetchPlayerForNick(trimmed);
+    let accent = defaultAccent;
+    if (player?.tag) {
+      const c = discordColorFromTag(player.tag);
+      if (c != null) accent = c;
     }
-  } else {
-    embed.setDescription(
-      'Consulta pública de jogadores, leaderboard e perfis no **SavageMC STATS**.'
-    );
-    embed.addFields(
-      {
-        name: 'Início / busca',
-        value: `[stats.savagemc.net](${home})`,
-      },
-      {
-        name: 'Perfil por nick',
-        value:
-          'Usa `/stats nick:` com o **nick no Minecraft** para receber o link direto do perfil.',
-      }
-    );
+
+    const mainText =
+      `## SavageMC · STATS\n\n` +
+      `Perfil de **${trimmed}** no site de estatísticas.\n\n` +
+      `[Abrir perfil](${profileUrl})\n\n` +
+      `**STATS geral**\n` +
+      `[stats.savagemc.net](${home})`;
+
+    let container;
+    if (player?.uuid) {
+      const section = new SectionBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(mainText)
+        )
+        .setThumbnailAccessory(
+          new ThumbnailBuilder()
+            .setURL(`https://mc-heads.net/avatar/${player.uuid}/100`)
+            .setDescription(`Skin · ${trimmed}`)
+        );
+      container = new ContainerBuilder()
+        .setAccentColor(accent)
+        .addSectionComponents(section)
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(foot));
+    } else {
+      container = new ContainerBuilder()
+        .setAccentColor(accent)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(mainText))
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(foot));
+    }
+
+    await interaction.editReply({
+      flags: V2_FLAGS.ephemeral,
+      components: [container],
+    });
+    return;
   }
 
-  await interaction.editReply({ embeds: [embed] });
+  const noNickText =
+    `## SavageMC · STATS\n\n` +
+    'Consulta pública de jogadores, leaderboard e perfis no **SavageMC STATS**.\n\n' +
+    `**Início / busca**\n` +
+    `[stats.savagemc.net](${home})\n\n` +
+    '**Perfil por nick**\n' +
+    'Usa `/stats nick:` com o **nick no Minecraft** para receber o link direto do perfil.';
+
+  const container = new ContainerBuilder()
+    .setAccentColor(defaultAccent)
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(noNickText))
+    .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(foot));
+
+  await interaction.editReply({
+    flags: V2_FLAGS.ephemeral,
+    components: [container],
+  });
 }
 
 module.exports = { handleStats };

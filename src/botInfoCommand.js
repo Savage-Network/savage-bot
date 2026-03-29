@@ -1,8 +1,15 @@
 'use strict';
 
-const { EmbedBuilder, MessageFlags } = require('discord.js');
+const { MessageFlags } = require('discord.js');
 const config = require('./config');
 const { footer } = require('./embedCopyright');
+const {
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  V2_FLAGS,
+  footerTimestampLine,
+} = require('./v2Helpers');
 
 const pkg = require('../package.json');
 
@@ -27,33 +34,33 @@ async function handleBotInfo(interaction, startedAtMs) {
   const rssMb = (mem.rss / 1024 / 1024).toFixed(1);
   const guild = interaction.guild;
 
-  const embed = new EmbedBuilder()
-    .setColor(config.ticketEmbedColor())
-    .setTitle('SavageMC · bot')
-    .setDescription(`**${pkg.name}** v${pkg.version}`)
-    .addFields(
-      { name: 'Uptime', value: uptime, inline: true },
-      { name: 'Memória (RSS)', value: `${rssMb} MB`, inline: true },
-      {
-        name: 'Gateway',
-        value: `${interaction.client.ws.ping >= 0 ? interaction.client.ws.ping : '—'} ms`,
-        inline: true,
-      },
-      {
-        name: 'Servidor',
-        value: guild
-          ? `${guild.name} · ${guild.memberCount} membros`
-          : '_DM / sem servidor_',
-      },
-      {
-        name: 'Créditos',
-        value: 'desenhar · henqks · zrwfa',
-      }
-    )
-    .setFooter(footer({ text: 'Node.js ' + process.version }))
-    .setTimestamp();
+  const text =
+    '## SavageMC · bot\n\n' +
+    `**${pkg.name}** v${pkg.version}\n\n` +
+    `**Uptime** · ${uptime}\n` +
+    `**Memória (RSS)** · ${rssMb} MB\n` +
+    `**Gateway** · ${interaction.client.ws.ping >= 0 ? interaction.client.ws.ping : '—'} ms\n\n` +
+    `**Servidor** · ${
+      guild
+        ? `${guild.name} · ${guild.memberCount} membros`
+        : '_DM / sem servidor_'
+    }\n\n` +
+    '**Créditos** · desenhar · henqks · zrwfa';
 
-  await interaction.editReply({ embeds: [embed] });
+  const container = new ContainerBuilder()
+    .setAccentColor(config.ticketEmbedColor())
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(text))
+    .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        footerTimestampLine(footer({ text: 'Node.js ' + process.version }).text)
+      )
+    );
+
+  await interaction.editReply({
+    flags: V2_FLAGS.ephemeral,
+    components: [container],
+  });
 }
 
 module.exports = { handleBotInfo };

@@ -1,7 +1,6 @@
 'use strict';
 
 const {
-  EmbedBuilder,
   MessageFlags,
   ModalBuilder,
   TextInputBuilder,
@@ -12,6 +11,13 @@ const { VoiceConnectionStatus } = require('@discordjs/voice');
 const config = require('./config');
 const { joinVoiceChannelById } = require('./voiceStay');
 const { footer } = require('./embedCopyright');
+const {
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  V2_FLAGS,
+  footerTimestampLine,
+} = require('./v2Helpers');
 
 const DEV_COMMIT_MODAL_ID = 'dev_commit_modal';
 const DEV_COMMIT_FIELD_SISTEMA = 'dev_commit_sistema';
@@ -146,19 +152,20 @@ async function handleDev(interaction) {
       });
     }
 
-    const embed = new EmbedBuilder()
-      .setColor(config.ticketEmbedColor())
-      .setTitle('Anotação (dev)')
-      .setDescription(texto.slice(0, 4096))
-      .addFields({
-        name: 'Autor',
-        value: `${interaction.user} · ${interaction.user.tag}`,
-      })
-      .setFooter(footer())
-      .setTimestamp();
+    const noteText =
+      '## Anotação (dev)\n\n' +
+      texto.slice(0, 3800) +
+      `\n\n**Autor** · ${interaction.user} · ${interaction.user.tag}`;
+    const container = new ContainerBuilder()
+      .setAccentColor(config.ticketEmbedColor())
+      .addTextDisplayComponents(new TextDisplayBuilder().setContent(noteText))
+      .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(footerTimestampLine(footer().text))
+      );
 
     try {
-      await ch.send({ embeds: [embed] });
+      await ch.send({ flags: V2_FLAGS.public, components: [container] });
     } catch (err) {
       console.error('[dev anotar]', err);
       return interaction.editReply({
@@ -239,22 +246,21 @@ async function handleDevCommitModal(interaction) {
     });
   }
 
-  const embed = new EmbedBuilder()
-    .setColor(config.ticketEmbedColor())
-    .setTitle('Commit')
-    .addFields(
-      { name: 'Sistema', value: truncateEmbedField(sistema) },
-      { name: 'Atualizações', value: atualizacoesAsCodeBlock(atual) },
-      {
-        name: 'Autor',
-        value: `${interaction.user} · ${interaction.user.tag}`,
-      }
-    )
-    .setFooter(footer())
-    .setTimestamp();
+  const commitText =
+    '## Commit\n\n' +
+    `**Sistema**\n${truncateEmbedField(sistema)}\n\n` +
+    `**Atualizações**\n${atualizacoesAsCodeBlock(atual)}\n\n` +
+    `**Autor** · ${interaction.user} · ${interaction.user.tag}`;
+  const container = new ContainerBuilder()
+    .setAccentColor(config.ticketEmbedColor())
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(commitText))
+    .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(footerTimestampLine(footer().text))
+    );
 
   try {
-    await ch.send({ embeds: [embed] });
+    await ch.send({ flags: V2_FLAGS.public, components: [container] });
   } catch (err) {
     console.error('[dev commit]', err);
     return interaction.reply({
