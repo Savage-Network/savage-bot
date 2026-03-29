@@ -25,6 +25,7 @@ const { handleCanal } = require('./canalCommand');
 const { registerAutorole } = require('./autorole');
 const { registerAutoResponses } = require('./autoResponses');
 const { handleDev, handleDevCommitModal } = require('./devCommand');
+const { handleStats } = require('./statsCommand');
 
 const BOT_STARTED_AT_MS = Date.now();
 
@@ -38,6 +39,7 @@ const chatCommandHandlers = {
   botinfo: (i) => handleBotInfo(i, BOT_STARTED_AT_MS),
   canal: (i) => handleCanal(i),
   dev: (i) => handleDev(i),
+  stats: (i) => handleStats(i),
 };
 
 function createClient() {
@@ -92,14 +94,9 @@ function createClient() {
       }
     } catch (err) {
       const code = err?.code ?? err?.rawError?.code;
-      if (code === 10062 || code === 40060) {
-        console.warn(
-          '[interação] Interação expirada ou já respondida (código',
-          code,
-          ').'
-        );
-        return;
-      }
+      // 10062 = interação expirada / token inválido; 40060 = já reconhecida.
+      // Situações normais (ex.: componente antigo, duplicado) — não vale log.
+      if (code === 10062 || code === 40060) return;
       console.error('[interação]', err);
       const msg = 'Ocorreu um erro ao processar a solicitação.';
       if (interaction.deferred || interaction.replied) {
@@ -149,6 +146,17 @@ async function registerSlashCommands() {
     new SlashCommandBuilder()
       .setName('minecraft')
       .setDescription('Endereço e dados rápidos para conectar ao SavageMC')
+      .toJSON(),
+    new SlashCommandBuilder()
+      .setName('stats')
+      .setDescription('Links para o SavageMC STATS (perfil e site)')
+      .addStringOption((o) =>
+        o
+          .setName('nick')
+          .setDescription('Nick no Minecraft — abre o perfil em stats.savagemc.net')
+          .setRequired(false)
+          .setMaxLength(16)
+      )
       .toJSON(),
     new SlashCommandBuilder()
       .setName('botinfo')

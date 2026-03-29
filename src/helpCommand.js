@@ -20,6 +20,7 @@ async function handleHelp(interaction) {
           '`/status` — status detalhado do Minecraft\n' +
           '`/minecraft` — endereço e dados rápidos para conectar\n' +
           '`/servidor` — info deste Discord (membros, boost, etc.)\n' +
+          '`/stats` — links do [SavageMC STATS](https://stats.savagemc.net/) (opcional: `nick`)\n' +
           '`/botinfo` — uptime, memória e latência do bot',
       },
       {

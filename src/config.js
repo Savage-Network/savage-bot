@@ -282,4 +282,37 @@ module.exports = {
   /** Canal de texto para registos `/dev commit`. */
   devCommitChannelId: () =>
     pick('devCommitChannelId', 'DEV_COMMIT_CHANNEL_ID') || null,
+
+  /**
+   * Base da API Savage (sem barra final), ex.: jogadores → UUID para thumbnail do `/stats`.
+   */
+  savageApiBaseUrl: () => {
+    const v = pick(
+      'savageApiBaseUrl',
+      'SAVAGE_API_BASE_URL',
+      'https://savage-api-one.vercel.app'
+    );
+    return String(v).trim().replace(/\/$/, '');
+  },
+
+  /**
+   * Base do site SavageMC STATS (sem barra final).
+   * @see https://stats.savagemc.net/
+   */
+  statsSiteUrl: () => {
+    const env = process.env.STATS_SITE_URL;
+    if (env != null && String(env).trim() !== '') {
+      return String(env).trim().replace(/\/$/, '');
+    }
+    const v = pick('statsSiteUrl', 'STATS_SITE_URL');
+    const raw =
+      v && String(v).trim() ? String(v).trim() : 'https://stats.savagemc.net';
+    return raw.replace(/\/$/, '');
+  },
+
+  /** URL da página de perfil (`perfil.html?jogador=`). */
+  statsProfileUrlForNick: (nick) => {
+    const base = module.exports.statsSiteUrl();
+    return `${base}/perfil.html?jogador=${encodeURIComponent(String(nick).trim())}`;
+  },
 };
