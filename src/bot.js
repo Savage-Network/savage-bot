@@ -23,6 +23,8 @@ const { handleCanal } = require('./canalCommand');
 const { registerAutorole } = require('./autorole');
 const { registerAutoResponses } = require('./autoResponses');
 const { handleDev, handleDevCommitModal } = require('./devCommand');
+const { handlePteroAutocomplete } = require('./pteroPanel');
+const { startPteroStatePoller } = require('./pteroStatePoller');
 const { handleStats } = require('./statsCommand');
 
 const BOT_STARTED_AT_MS = Date.now();
@@ -67,10 +69,20 @@ function createClient() {
     startDiscordLogging(client);
     startMcPresence(client);
     if (config.voiceEnabled()) startVoiceWatch(client);
+    startPteroStatePoller(client);
   });
 
   client.on('interactionCreate', async (interaction) => {
     try {
+      if (interaction.isAutocomplete()) {
+        if (interaction.commandName === 'dev') {
+          const sub = interaction.options.getSubcommand(false);
+          if (sub === 'ptero' || sub === 'ptero-info') {
+            return await handlePteroAutocomplete(interaction);
+          }
+        }
+        return;
+      }
       if (interaction.isChatInputCommand()) {
         const run = chatCommandHandlers[interaction.commandName];
         if (run) return await run(interaction);
@@ -182,7 +194,7 @@ async function registerSlashCommands() {
     new SlashCommandBuilder()
       .setName('dev')
       .setDescription(
-        'Assistente de desenvolvimento (só utilizadores em canaisDEV no config)'
+        'Assistente de desenvolvimento (canaisDEV; Pterodactyl também com pteroRoleId)'
       )
       .setDMPermission(false)
       .addSubcommand((s) =>
@@ -206,6 +218,58 @@ async function registerSlashCommands() {
         s
           .setName('config')
           .setDescription('Config não sensível (sem token) carregada pelo bot')
+      )
+      .addSubcommand((s) =>
+        s
+          .setName('ptero')
+          .setDescription(
+            'Pterodactyl: ligar, desligar ou reiniciar servidor (ptero.json)'
+          )
+          .addStringOption((o) =>
+            o
+              .setName('acao')
+              .setDescription('Ação de energia no painel')
+              .setRequired(true)
+              .addChoices(
+                { name: 'Ligar', value: 'start' },
+                { name: 'Desligar', value: 'stop' },
+                { name: 'Reiniciar', value: 'restart' }
+              )
+          )
+          .addStringOption((o) =>
+            o
+              .setName('servidor')
+              .setDescription('Nome do servidor (chave em ptero.json → servers)')
+              .setRequired(true)
+              .setAutocomplete(true)
+          )
+      )
+      .addSubcommand((s) =>
+        s
+          .setName('ptero-lista')
+          .setDescription('Pterodactyl: estado e uso (CPU/RAM) de todos os servidores em ptero.json')
+      )
+      .addSubcommand((s) =>
+        s
+          .setName('ptero-info')
+          .setDescription('Pterodactyl: detalhe de um servidor (estado, CPU, RAM, disco, rede, uptime)')
+          .addStringOption((o) =>
+            o
+              .setName('servidor')
+              .setDescription('Nome do servidor (ptero.json → servers)')
+              .setRequired(true)
+              .setAutocomplete(true)
+          )
+      )
+      .addSubcommand((s) =>
+        s
+          .setName('ptero-ping')
+          .setDescription('Pterodactyl: testar ligação ao painel (GET /api/client)')
+      )
+      .addSubcommand((s) =>
+        s
+          .setName('projeto')
+          .setDescription('Metadados do package.json (nome, versão, dependências, engines)')
       )
       .addSubcommand((s) =>
         s

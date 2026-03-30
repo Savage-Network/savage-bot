@@ -23,7 +23,24 @@ const {
   buildDocsMarkdown,
   buildGuildDebugMarkdown,
   buildSafeConfigMarkdown,
+  buildProjectMarkdown,
 } = require('./devAssist');
+const {
+  handlePteroDev,
+  handlePteroListaDev,
+  handlePteroInfoDev,
+  handlePteroPingDev,
+  canUsePteroCommand,
+} = require('./pteroPanel');
+
+function isPteroRelatedSubcommand(sub) {
+  return (
+    sub === 'ptero' ||
+    sub === 'ptero-lista' ||
+    sub === 'ptero-info' ||
+    sub === 'ptero-ping'
+  );
+}
 
 const DEV_COMMIT_MODAL_ID = 'dev_commit_modal';
 const DEV_COMMIT_FIELD_SISTEMA = 'dev_commit_sistema';
@@ -60,15 +77,25 @@ async function handleDev(interaction, opts = {}) {
     });
   }
 
-  if (!isDevUser(interaction.user.id)) {
+  const sub = interaction.options.getSubcommand();
+
+  if (isPteroRelatedSubcommand(sub)) {
+    if (!canUsePteroCommand(interaction)) {
+      const roleId = config.pteroRoleId();
+      return interaction.reply({
+        content: roleId
+          ? `Não tens permissão: precisas do cargo <@&${roleId}> para os comandos Pterodactyl.`
+          : 'Não tens permissão: o teu ID não está em `canaisDEV` no config.',
+        flags: MessageFlags.Ephemeral,
+      });
+    }
+  } else if (!isDevUser(interaction.user.id)) {
     return interaction.reply({
       content:
         'Não tens permissão: o teu ID de utilizador não está em `canaisDEV` no config.',
       flags: MessageFlags.Ephemeral,
     });
   }
-
-  const sub = interaction.options.getSubcommand();
 
   if (sub === 'diagnostico') {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
@@ -97,6 +124,27 @@ async function handleDev(interaction, opts = {}) {
 
   if (sub === 'config') {
     const md = buildSafeConfigMarkdown();
+    return replyDevPanel(interaction, md);
+  }
+
+  if (sub === 'ptero') {
+    return handlePteroDev(interaction);
+  }
+
+  if (sub === 'ptero-lista') {
+    return handlePteroListaDev(interaction);
+  }
+
+  if (sub === 'ptero-info') {
+    return handlePteroInfoDev(interaction);
+  }
+
+  if (sub === 'ptero-ping') {
+    return handlePteroPingDev(interaction);
+  }
+
+  if (sub === 'projeto') {
+    const md = buildProjectMarkdown();
     return replyDevPanel(interaction, md);
   }
 

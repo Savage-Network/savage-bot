@@ -1,0 +1,13 @@
+{
+  "_info": "Copia para ptero.json. **apiKey** = Client API (**ptlc_**), Account → API Credentials (não ptla_). UUID em Painel → Servidor. HTTPS em panelUrl. Logs de estado real: config **pteroStatePollMs** + **pteroLogChannelId**. Env: PTERODACTYL_PANEL_URL, PTERODACTYL_API_KEY.",
+  "panelUrl": "https://panel.exemplo.com",
+  "apiKey": "ptlc_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+  "servers": {
+    "lobby": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "lobbyhg": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "lobbybw": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "proxy": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "builds": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "duels": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+  }
+}

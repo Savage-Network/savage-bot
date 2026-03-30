@@ -8,6 +8,7 @@
 const path = require('path');
 const { execSync } = require('child_process');
 const config = require('./config');
+const { getResolvedPtero } = require('./pteroPanel');
 
 const pkg = require('../package.json');
 
@@ -108,7 +109,8 @@ function buildDocsMarkdown(repositoryUrl) {
     '**API Discord (developers)** · [discord.com/developers/docs](https://discord.com/developers/docs/intro)\n' +
     '**Components V2 (guia)** · [discordjs.guide/popular-topics/components-v2.html](https://discordjs.guide/popular-topics/components-v2.html)\n' +
     '**discord-api-types** · [npmjs.com/package/discord-api-types](https://www.npmjs.com/package/discord-api-types)\n\n' +
-    '**Node.js** · [nodejs.org/docs](https://nodejs.org/docs/latest/api/)'
+    '**Node.js** · [nodejs.org/docs](https://nodejs.org/docs/latest/api/)\n' +
+    '**Pterodactyl (painel)** · [pterodactyl.io](https://pterodactyl.io/project/introduction.html)'
   );
 }
 
@@ -138,9 +140,17 @@ function buildGuildDebugMarkdown(guild) {
 }
 
 function buildSafeConfigMarkdown() {
+  const ptero = getResolvedPtero();
+  const pteroLine =
+    ptero.panelUrl && ptero.apiKey
+      ? `**Pterodactyl** · painel \`${ptero.panelUrl}\` · chave API definida · **${Object.keys(ptero.servers).length}** servidor(es) em \`ptero.json\``
+      : ptero.panelUrl
+        ? `**Pterodactyl** · painel \`${ptero.panelUrl}\` · _sem chave API (env ou ptero.json)_`
+        : '**Pterodactyl** · _(opcional — copia `ptero.example.json` → `ptero.json`)_';
+
   const lines = [
     '## Dev · configuração (sem segredos)\n',
-    '-# Valores efetivos que o bot lê do `config.json` / ambiente — **nunca** inclui `DISCORD_TOKEN`.\n',
+    '-# Valores efetivos que o bot lê do `config.json` / ambiente — **nunca** inclui `DISCORD_TOKEN` nem chaves API.\n',
     '',
     `**guildId** · \`${config.guildId() || '—'}\``,
     `**mcHost** · \`${config.mcHost()}\` · **mcPort** · ${config.mcPort()}`,
@@ -151,10 +161,39 @@ function buildSafeConfigMarkdown() {
     `**voiceEnabled** · ${config.voiceEnabled()}`,
     `**discordLogChannelId** · \`${config.discordLogChannelId() || '—'}\``,
     `**devCommitChannelId** · \`${config.devCommitChannelId() || '—'}\``,
+    `**pteroLogChannelId** · \`${config.pteroLogChannelId() || '—'}\` — log de \`/dev ptero\``,
+    `**pteroRoleId** · \`${config.pteroRoleId() || '—'}\` — se definido, só este cargo usa \`/dev ptero\` (senão \`canaisDEV\`)`,
+    `**pteroStatePollMs** · ${config.pteroStatePollMs()} — consulta ao painel para log quando o estado muda (0 = desativado)`,
     `**devVoiceChannelId** · \`${config.devVoiceChannelId() || '—'}\``,
     `**canaisDEV** · ${config.canaisDEV().length} mapeamento(s)`,
+    '',
+    pteroLine,
   ];
   return lines.join('\n');
+}
+
+/** Resumo do `package.json` do bot (sem segredos). */
+function buildProjectMarkdown() {
+  const deps = Object.keys(pkg.dependencies || {}).length;
+  const devDeps = Object.keys(pkg.devDependencies || {}).length;
+  const engines = pkg.engines || {};
+  const engStr =
+    typeof engines === 'object' && engines !== null && Object.keys(engines).length
+      ? Object.entries(engines)
+          .map(([k, v]) => `${k} ≥ ${v}`)
+          .join(' · ')
+      : '—';
+
+  return (
+    '## Dev · projeto (package.json)\n\n' +
+    '-# Metadados do pacote em execução — útil para alinhar versões com o CI ou deploy.\n\n' +
+    `**Nome** · \`${pkg.name}\`\n` +
+    `**Versão** · \`${pkg.version}\`\n` +
+    `**Descrição** · ${pkg.description ? String(pkg.description).slice(0, 200) : '—'}\n` +
+    `**Dependências** · ${deps} (prod) · ${devDeps} (dev)\n` +
+    `**engines** · ${engStr}\n` +
+    `**main** · \`${pkg.main || '—'}\``
+  );
 }
 
 module.exports = {
@@ -162,4 +201,5 @@ module.exports = {
   buildDocsMarkdown,
   buildGuildDebugMarkdown,
   buildSafeConfigMarkdown,
+  buildProjectMarkdown,
 };

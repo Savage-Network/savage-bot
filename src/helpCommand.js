@@ -33,6 +33,8 @@ async function handleHelp(interaction) {
     '`/dev docs` — links úteis (discord.js, API, Components V2)\n' +
     '`/dev guild` — IDs e flags do servidor (debug)\n' +
     '`/dev config` — opções carregadas sem segredos\n' +
+    '`/dev ptero` — energia (ligar/desligar/reiniciar) · `ptero-lista` · `ptero-info` · `ptero-ping` — [Pterodactyl](https://pterodactyl.io/)\n' +
+    '`/dev projeto` — nome, versão e dependências do `package.json`\n' +
     '`/dev voice` — bot na call (`devVoiceChannelId` / `voiceChannelId`)\n' +
     '`/dev anotar` — nota no teu canal (`idCanal` em `canaisDEV`)\n' +
     '`/dev commit` — modal → canal `devCommitChannelId`\n\n' +

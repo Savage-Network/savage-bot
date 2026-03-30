@@ -221,6 +221,26 @@ module.exports = {
   devCommitChannelId: () =>
     pick('devCommitChannelId', 'DEV_COMMIT_CHANNEL_ID') || null,
 
+  /** Canal de texto para auditoria de `/dev ptero` (ligar/desligar/reiniciar). */
+  pteroLogChannelId: () =>
+    pick('pteroLogChannelId', 'PTERO_LOG_CHANNEL_ID') || null,
+
+  /**
+   * Cargo obrigatório para `/dev ptero` (se definido).
+   * Se vazio, mantém o critério `canaisDEV` como antes.
+   */
+  pteroRoleId: () => pick('pteroRoleId', 'PTERO_ROLE_ID') || null,
+
+  /**
+   * Intervalo (ms) para consultar o estado real dos servidores no painel e registar mudanças em `pteroLogChannelId`.
+   * `0` desativa. Requer `pteroLogChannelId`, `ptero.json` com chave Client API e servidores.
+   */
+  pteroStatePollMs: () =>
+    pickNum('pteroStatePollMs', 'PTERO_STATE_POLL_MS', 45000, {
+      min: 0,
+      max: 3600000,
+    }),
+
   /** URL do repositório Git (opcional) — mostrada em `/dev docs`. */
   repositoryUrl: () => pick('repositoryUrl', 'REPOSITORY_URL') || null,
 

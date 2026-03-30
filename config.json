@@ -1,5 +1,5 @@
 {
-  "_info": "SavageMC bot — DISCORD_TOKEN só no .env (nunca no JSON). Variáveis de ambiente sobrescrevem estas chaves. Secções: discord → visual → minecraft → stats/api → voz → logs → autorole → autoResponses → dev → canaisDEV.",
+  "_info": "SavageMC bot — DISCORD_TOKEN só no .env (nunca no JSON). Variáveis de ambiente sobrescrevem estas chaves. Secções: discord → visual → minecraft → stats/api → voz → logs → autorole → autoResponses → dev (pteroLogChannelId, pteroStatePollMs, pteroRoleId) → canaisDEV.",
 
   "clientId": "1486849174321500291",
   "guildId": "1486476169770700883",
@@ -36,6 +36,9 @@
 
   "devVoiceChannelId": "1486476177240752349",
   "devCommitChannelId": "1487244541806510100",
+  "pteroLogChannelId": "1488282735335440434",
+  "pteroRoleId": "1486476170219487397",
+  "pteroStatePollMs": 1,
   "repositoryUrl": null,
 
   "canaisDEV": [
