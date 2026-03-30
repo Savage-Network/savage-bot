@@ -23,7 +23,7 @@ async function handlePing(interaction) {
     `**Gateway (WebSocket)** · ${ws >= 0 ? ws : '—'} ms`;
 
   const container = new ContainerBuilder()
-    .setAccentColor(config.ticketEmbedColor())
+    .setAccentColor(config.embedAccentColor())
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(text))
     .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
     .addTextDisplayComponents(

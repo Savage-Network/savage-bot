@@ -18,6 +18,12 @@ const {
   V2_FLAGS,
   footerTimestampLine,
 } = require('./v2Helpers');
+const {
+  buildDiagnosticoMarkdown,
+  buildDocsMarkdown,
+  buildGuildDebugMarkdown,
+  buildSafeConfigMarkdown,
+} = require('./devAssist');
 
 const DEV_COMMIT_MODAL_ID = 'dev_commit_modal';
 const DEV_COMMIT_FIELD_SISTEMA = 'dev_commit_sistema';
@@ -28,7 +34,25 @@ function isDevUser(userId) {
   return config.canaisDEV().some((e) => e.idDiscord === id);
 }
 
-async function handleDev(interaction) {
+function devFooterLine() {
+  return footerTimestampLine(footer({ text: 'Dev · SavageMC' }).text);
+}
+
+async function replyDevPanel(interaction, markdown, { edit = false } = {}) {
+  const container = new ContainerBuilder()
+    .setAccentColor(config.embedAccentColor())
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(String(markdown).slice(0, 3800))
+    )
+    .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(devFooterLine()));
+  const payload = { flags: V2_FLAGS.ephemeral, components: [container] };
+  if (edit) await interaction.editReply(payload);
+  else await interaction.reply(payload);
+}
+
+async function handleDev(interaction, opts = {}) {
+  const botStartedAtMs = opts.botStartedAtMs ?? Date.now();
   if (!interaction.inGuild()) {
     return interaction.reply({
       content: 'Usa este comando só no servidor.',
@@ -46,6 +70,36 @@ async function handleDev(interaction) {
 
   const sub = interaction.options.getSubcommand();
 
+  if (sub === 'diagnostico') {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    const md = buildDiagnosticoMarkdown({
+      client: interaction.client,
+      botStartedAtMs,
+    });
+    return replyDevPanel(interaction, md, { edit: true });
+  }
+
+  if (sub === 'docs') {
+    const md = buildDocsMarkdown(config.repositoryUrl());
+    return replyDevPanel(interaction, md);
+  }
+
+  if (sub === 'guild') {
+    if (!interaction.guild) {
+      return interaction.reply({
+        content: 'Usa este subcomando dentro de um servidor.',
+        flags: MessageFlags.Ephemeral,
+      });
+    }
+    const md = buildGuildDebugMarkdown(interaction.guild);
+    return replyDevPanel(interaction, md);
+  }
+
+  if (sub === 'config') {
+    const md = buildSafeConfigMarkdown();
+    return replyDevPanel(interaction, md);
+  }
+
   if (sub === 'commit') {
     const modal = new ModalBuilder()
       .setCustomId(DEV_COMMIT_MODAL_ID)
@@ -57,7 +111,7 @@ async function handleDev(interaction) {
       .setStyle(TextInputStyle.Paragraph)
       .setRequired(true)
       .setMaxLength(2000)
-      .setPlaceholder('Área ou sistema (ex.: tickets, bot, site)');
+      .setPlaceholder('Área ou sistema (ex.: bot, site, api)');
 
     const atualInput = new TextInputBuilder()
       .setCustomId(DEV_COMMIT_FIELD_ATUAL)
@@ -157,7 +211,7 @@ async function handleDev(interaction) {
       texto.slice(0, 3800) +
       `\n\n**Autor** · ${interaction.user} · ${interaction.user.tag}`;
     const container = new ContainerBuilder()
-      .setAccentColor(config.ticketEmbedColor())
+      .setAccentColor(config.embedAccentColor())
       .addTextDisplayComponents(new TextDisplayBuilder().setContent(noteText))
       .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
       .addTextDisplayComponents(
@@ -252,7 +306,7 @@ async function handleDevCommitModal(interaction) {
     `**Atualizações**\n${atualizacoesAsCodeBlock(atual)}\n\n` +
     `**Autor** · ${interaction.user} · ${interaction.user.tag}`;
   const container = new ContainerBuilder()
-    .setAccentColor(config.ticketEmbedColor())
+    .setAccentColor(config.embedAccentColor())
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(commitText))
     .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
     .addTextDisplayComponents(

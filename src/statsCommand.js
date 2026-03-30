@@ -77,7 +77,7 @@ async function handleStats(interaction) {
 
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-  const defaultAccent = config.ticketEmbedColor();
+  const defaultAccent = config.embedAccentColor();
   const foot = footerTimestampLine(footer().text);
 
   if (nick && String(nick).trim()) {

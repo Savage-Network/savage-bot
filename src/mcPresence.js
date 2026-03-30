@@ -5,6 +5,8 @@ const { status } = require('minecraft-server-util');
 const config = require('./config');
 
 let presenceTimer = null;
+/** Evita chamadas à API quando o texto da atividade não mudou. */
+let lastPresenceActivityName = null;
 
 const MC_STATUS_CACHE_MS = 5000;
 let mcStatusCache = { at: 0, data: null };
@@ -94,6 +96,8 @@ function startMcPresence(client) {
       name = 'SavageMC · servidor offline.';
     }
     if (name.length > 128) name = name.slice(0, 125) + '...';
+    if (name === lastPresenceActivityName) return;
+    lastPresenceActivityName = name;
     try {
       client.user.setPresence({
         activities: [
@@ -118,6 +122,7 @@ function stopMcPresence() {
     clearInterval(presenceTimer);
     presenceTimer = null;
   }
+  lastPresenceActivityName = null;
 }
 
 module.exports = { startMcPresence, stopMcPresence, fetchMcStatus };

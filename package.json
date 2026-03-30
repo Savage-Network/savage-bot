@@ -1,7 +1,7 @@
 {
   "name": "savagemc-discord-bot",
   "version": "1.0.0",
-  "description": "Bot SavageMC — tickets, status Minecraft na presence e voz fixa",
+  "description": "Bot SavageMC — Minecraft, assistente de desenvolvimento (/dev), presence e voz",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",

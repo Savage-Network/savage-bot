@@ -23,7 +23,6 @@ async function handleServidor(interaction) {
 
   await interaction.deferReply();
   const g = interaction.guild;
-  await g.members.fetch({ withPresences: false }).catch(() => {});
 
   const owner = await g.fetchOwner().catch(() => null);
   const iconUrl = g.iconURL({ size: 256, extension: 'png' });
@@ -52,13 +51,13 @@ async function handleServidor(interaction) {
         new ThumbnailBuilder().setURL(iconUrl).setDescription(g.name)
       );
     container = new ContainerBuilder()
-      .setAccentColor(config.ticketEmbedColor())
+      .setAccentColor(config.embedAccentColor())
       .addSectionComponents(section)
       .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
       .addTextDisplayComponents(new TextDisplayBuilder().setContent(foot));
   } else {
     container = new ContainerBuilder()
-      .setAccentColor(config.ticketEmbedColor())
+      .setAccentColor(config.embedAccentColor())
       .addTextDisplayComponents(new TextDisplayBuilder().setContent(lines))
       .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
       .addTextDisplayComponents(new TextDisplayBuilder().setContent(foot));

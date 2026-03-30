@@ -2,7 +2,6 @@
 
 const {
   Client,
-  Collection,
   GatewayIntentBits,
   Partials,
   REST,
@@ -13,7 +12,6 @@ const {
 const config = require('./config');
 const { startMcPresence, stopMcPresence } = require('./mcPresence');
 const { startVoiceWatch, stopVoiceWatch } = require('./voiceStay');
-const tickets = require('./tickets');
 const { handleStatus } = require('./statusCommand');
 const { handlePing } = require('./pingCommand');
 const { handleHelp } = require('./helpCommand');
@@ -30,7 +28,6 @@ const { handleStats } = require('./statsCommand');
 const BOT_STARTED_AT_MS = Date.now();
 
 const chatCommandHandlers = {
-  ticket: (i) => tickets.handleSlash(i),
   status: (i) => handleStatus(i),
   ping: (i) => handlePing(i),
   ajuda: (i) => handleHelp(i),
@@ -38,7 +35,7 @@ const chatCommandHandlers = {
   minecraft: (i) => handleMinecraft(i),
   botinfo: (i) => handleBotInfo(i, BOT_STARTED_AT_MS),
   canal: (i) => handleCanal(i),
-  dev: (i) => handleDev(i),
+  dev: (i) => handleDev(i, { botStartedAtMs: BOT_STARTED_AT_MS }),
   stats: (i) => handleStats(i),
 };
 
@@ -50,7 +47,6 @@ function createClient() {
       GatewayIntentBits.GuildMessages,
       GatewayIntentBits.GuildVoiceStates,
       GatewayIntentBits.GuildModeration,
-      GatewayIntentBits.GuildInvites,
       GatewayIntentBits.GuildMessageReactions,
       GatewayIntentBits.MessageContent,
     ],
@@ -63,7 +59,6 @@ function createClient() {
     ],
   });
 
-  client.commands = new Collection();
   registerAutorole(client);
   registerAutoResponses(client);
 
@@ -80,17 +75,11 @@ function createClient() {
         const run = chatCommandHandlers[interaction.commandName];
         if (run) return await run(interaction);
       }
-      if (interaction.isStringSelectMenu()) {
-        return await tickets.handleSelectMenu(interaction);
-      }
-      if (interaction.isModalSubmit()) {
-        if (interaction.customId === 'dev_commit_modal') {
-          return await handleDevCommitModal(interaction);
-        }
-        return await tickets.handleModalSubmit(interaction);
-      }
-      if (interaction.isButton()) {
-        return await tickets.routeComponent(interaction);
+      if (
+        interaction.isModalSubmit() &&
+        interaction.customId === 'dev_commit_modal'
+      ) {
+        return await handleDevCommitModal(interaction);
       }
     } catch (err) {
       const code = err?.code ?? err?.rawError?.code;
@@ -192,8 +181,32 @@ async function registerSlashCommands() {
       .toJSON(),
     new SlashCommandBuilder()
       .setName('dev')
-      .setDescription('Ferramentas de desenvolvimento (lista em canaisDEV)')
+      .setDescription(
+        'Assistente de desenvolvimento (só utilizadores em canaisDEV no config)'
+      )
       .setDMPermission(false)
+      .addSubcommand((s) =>
+        s
+          .setName('diagnostico')
+          .setDescription(
+            'Snapshot técnico: Node, memória, discord.js, git (só você vê)'
+          )
+      )
+      .addSubcommand((s) =>
+        s
+          .setName('docs')
+          .setDescription('Links: discord.js, API Discord, Components V2, Node')
+      )
+      .addSubcommand((s) =>
+        s
+          .setName('guild')
+          .setDescription('IDs e flags do servidor para debug de permissões')
+      )
+      .addSubcommand((s) =>
+        s
+          .setName('config')
+          .setDescription('Config não sensível (sem token) carregada pelo bot')
+      )
       .addSubcommand((s) =>
         s
           .setName('voice')
@@ -215,103 +228,6 @@ async function registerSlashCommands() {
         s
           .setName('commit')
           .setDescription('Formulário de commit (Sistema e Atualizações → canal commit)')
-      )
-      .toJSON(),
-    new SlashCommandBuilder()
-      .setName('ticket')
-      .setDescription('Sistema de suporte SavageMC')
-      .addSubcommand((s) =>
-        s
-          .setName('painel')
-          .setDescription('Publicar o painel de abertura de tickets (staff)')
-      )
-      .addSubcommand((s) =>
-        s
-          .setName('fechar')
-          .setDescription('Fechar o ticket atual e gerar transcrição')
-          .addStringOption((o) =>
-            o
-              .setName('motivo')
-              .setDescription('Motivo do fechamento (opcional — logs e DM ao dono)')
-              .setRequired(false)
-              .setMaxLength(500)
-          )
-      )
-      .addSubcommand((s) =>
-        s
-          .setName('adicionar')
-          .setDescription('Adicionar um membro ao ticket (staff)')
-          .addUserOption((o) =>
-            o.setName('membro').setDescription('Usuário').setRequired(true)
-          )
-      )
-      .addSubcommand((s) =>
-        s
-          .setName('remover')
-          .setDescription('Remover um membro do ticket (staff)')
-          .addUserOption((o) =>
-            o.setName('membro').setDescription('Usuário').setRequired(true)
-          )
-      )
-      .addSubcommand((s) =>
-        s
-          .setName('assumir')
-          .setDescription('Staff: marcar que você assumiu este ticket')
-      )
-      .addSubcommand((s) =>
-        s
-          .setName('info')
-          .setDescription('Mostrar dados deste ticket (só você vê)')
-      )
-      .addSubcommand((s) =>
-        s
-          .setName('fixar')
-          .setDescription('Staff: fixar a mensagem de boas-vindas no topo')
-      )
-      .addSubcommand((s) =>
-        s
-          .setName('transferir')
-          .setDescription('Staff: passar a responsabilidade do ticket a outro membro')
-          .addUserOption((o) =>
-            o
-              .setName('staff')
-              .setDescription('Membro da equipe que vai assumir')
-              .setRequired(true)
-          )
-      )
-      .addSubcommand((s) =>
-        s
-          .setName('transcricao')
-          .setDescription('Staff: transcrição sem fechar o ticket (só você vê)')
-      )
-      .addSubcommand((s) =>
-        s
-          .setName('renomear')
-          .setDescription('Staff: alterar o nome do canal do ticket')
-          .addStringOption((o) =>
-            o
-              .setName('nome')
-              .setDescription('Novo nome (ex.: loja-steve-3-urgente)')
-              .setRequired(true)
-              .setMaxLength(100)
-          )
-      )
-      .addSubcommand((s) =>
-        s
-          .setName('listar')
-          .setDescription('Staff: listar tickets abertos na categoria')
-      )
-      .addSubcommand((s) =>
-        s
-          .setName('nota')
-          .setDescription('Staff: publicar uma nota no canal do ticket')
-          .addStringOption((o) =>
-            o
-              .setName('texto')
-              .setDescription('Conteúdo da nota')
-              .setRequired(true)
-              .setMaxLength(1000)
-          )
       )
       .toJSON(),
   ];

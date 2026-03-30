@@ -18,6 +18,10 @@ function loadFileConfig() {
 
 const fileConfig = loadFileConfig();
 
+/** Cache do parse de `AUTO_RESPONSES_JSON` (evita JSON.parse a cada mensagem). */
+let _autoResponsesEnvSource = null;
+let _autoResponsesEnvParsed = null;
+
 /**
  * Ambiente sobrescreve config.json (útil no Pterodactyl / Docker).
  * IDs grandes do Discord devem ser strings no JSON.
@@ -83,27 +87,6 @@ function parseCanaisDEV() {
     .filter((e) => e.idDiscord && e.idCanal);
 }
 
-/**
- * Lê `config.json` → objeto `ticket` (recomendado) ou chaves antigas na raiz.
- * @param {string} nestedKey — ex.: panelChannelId
- * @param {string} [legacyFlatKey] — ex.: ticketPanelChannelId
- */
-function readTicketField(nestedKey, legacyFlatKey) {
-  const t = fileConfig.ticket;
-  if (t && typeof t === 'object' && Object.prototype.hasOwnProperty.call(t, nestedKey)) {
-    const v = t[nestedKey];
-    if (v !== undefined && v !== null) {
-      if (typeof v === 'boolean') return v;
-      if (typeof v === 'number') return v;
-      return v;
-    }
-  }
-  if (legacyFlatKey && fileConfig[legacyFlatKey] !== undefined && fileConfig[legacyFlatKey] !== null) {
-    return fileConfig[legacyFlatKey];
-  }
-  return undefined;
-}
-
 module.exports = {
   /** Só via .env — nunca commite o token no repositório. */
   token: () => req('DISCORD_TOKEN'),
@@ -153,81 +136,24 @@ module.exports = {
       min: 5000,
     }),
 
-  ticketPanelChannelId: () => {
-    const env = process.env.TICKET_PANEL_CHANNEL_ID;
-    if (env != null && String(env).trim() !== '') return String(env).trim();
-    const v = readTicketField('panelChannelId', 'ticketPanelChannelId');
-    if (v === undefined || v === null) return null;
-    const s = String(v).trim();
-    return s !== '' ? s : null;
-  },
-
-  ticketCategoryId: () => {
-    const env = process.env.TICKET_CATEGORY_ID;
-    if (env != null && String(env).trim() !== '') return String(env).trim();
-    const v = readTicketField('categoryId', 'ticketCategoryId');
-    const s = v != null ? String(v).trim() : '';
-    if (!s) {
-      throw new Error(
-        'Defina ticket.categoryId em config.json (ou ticketCategoryId na raiz) ou TICKET_CATEGORY_ID no ambiente.'
-      );
-    }
-    return s;
-  },
-
-  staffRoleId: () => {
-    const env = process.env.STAFF_ROLE_ID;
-    if (env != null && String(env).trim() !== '') return String(env).trim();
-    const v = readTicketField('staffRoleId', 'staffRoleId');
-    if (v === undefined || v === null) return null;
-    const s = String(v).trim();
-    return s !== '' ? s : null;
-  },
-
-  ticketLogChannelId: () => {
-    const env = process.env.TICKET_LOG_CHANNEL_ID;
-    if (env != null && String(env).trim() !== '') return String(env).trim();
-    const v = readTicketField('logChannelId', 'ticketLogChannelId');
-    if (v === undefined || v === null) return null;
-    const s = String(v).trim();
-    return s !== '' ? s : null;
-  },
-
-  ticketEmbedColor: () => {
+  /**
+   * Cor de destaque (accent) dos containers V2 (decimal 0–16777215).
+   * `EMBED_ACCENT_COLOR` ou `TICKET_EMBED_COLOR` (legado) no ambiente; `embedColor` em config.json.
+   */
+  embedAccentColor: () => {
     let n = NaN;
-    const env = process.env.TICKET_EMBED_COLOR;
+    const env =
+      process.env.EMBED_ACCENT_COLOR || process.env.TICKET_EMBED_COLOR;
     if (env != null && String(env).trim() !== '') {
       n = parseInt(String(env).trim(), 10);
-    } else {
-      const v = readTicketField('embedColor', 'ticketEmbedColor');
-      if (v !== undefined && v !== null && v !== '') {
-        n = typeof v === 'number' ? v : parseInt(String(v), 10);
-      }
+    } else if (fileConfig.embedColor != null && fileConfig.embedColor !== '') {
+      const v = fileConfig.embedColor;
+      n = typeof v === 'number' ? v : parseInt(String(v), 10);
     }
     if (!Number.isFinite(n)) n = 15158332;
     if (n < 0) n = 0;
     if (n > 0xffffff) n = 0xffffff;
     return n;
-  },
-
-  /** URL da imagem grande (banner) do painel de tickets — vazio omite a imagem. */
-  ticketPanelBannerUrl: () => {
-    const env = process.env.TICKET_PANEL_BANNER_URL;
-    if (env != null && String(env).trim() !== '') return String(env).trim();
-    const v = readTicketField('panelBannerUrl', 'ticketPanelBannerUrl');
-    if (v === undefined || v === null) return null;
-    const s = String(v).trim();
-    return s !== '' ? s : null;
-  },
-
-  /** Texto do rodapé do embed do painel (ex.: domínio). */
-  ticketPanelFooterText: () => {
-    const env = process.env.TICKET_PANEL_FOOTER_TEXT;
-    if (env != null && String(env).trim() !== '') return String(env).trim();
-    const v = readTicketField('panelFooterText', 'ticketPanelFooterText');
-    if (v === undefined || v === null) return 'SavageMC';
-    const s = String(v).trim();
-    return s !== '' ? s : 'SavageMC';
   },
 
   discordLogChannelId: () =>
@@ -250,14 +176,26 @@ module.exports = {
    * Cada item: `{ "trigger", "response", "wholeWord"?, "caseSensitive"? }`
    */
   autoResponses: () => {
-    if (process.env.AUTO_RESPONSES_JSON != null && String(process.env.AUTO_RESPONSES_JSON).trim() !== '') {
+    const envRaw = process.env.AUTO_RESPONSES_JSON;
+    if (envRaw != null && String(envRaw).trim() !== '') {
+      const s = String(envRaw).trim();
+      if (_autoResponsesEnvSource === s && _autoResponsesEnvParsed !== null) {
+        return _autoResponsesEnvParsed;
+      }
       try {
-        const parsed = JSON.parse(process.env.AUTO_RESPONSES_JSON);
-        return Array.isArray(parsed) ? parsed : [];
+        const parsed = JSON.parse(s);
+        const arr = Array.isArray(parsed) ? parsed : [];
+        _autoResponsesEnvSource = s;
+        _autoResponsesEnvParsed = arr;
+        return arr;
       } catch {
+        _autoResponsesEnvSource = s;
+        _autoResponsesEnvParsed = [];
         return [];
       }
     }
+    _autoResponsesEnvSource = null;
+    _autoResponsesEnvParsed = null;
     const raw = fileConfig.autoResponses;
     return Array.isArray(raw) ? raw : [];
   },
@@ -282,6 +220,9 @@ module.exports = {
   /** Canal de texto para registos `/dev commit`. */
   devCommitChannelId: () =>
     pick('devCommitChannelId', 'DEV_COMMIT_CHANNEL_ID') || null,
+
+  /** URL do repositório Git (opcional) — mostrada em `/dev docs`. */
+  repositoryUrl: () => pick('repositoryUrl', 'REPOSITORY_URL') || null,
 
   /**
    * Base da API Savage (sem barra final), ex.: jogadores → UUID para thumbnail do `/stats`.

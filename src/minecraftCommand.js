@@ -50,7 +50,7 @@ async function handleMinecraft(interaction) {
   }
 
   const container = new ContainerBuilder()
-    .setAccentColor(config.ticketEmbedColor())
+    .setAccentColor(config.embedAccentColor())
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(main))
     .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(footLine));

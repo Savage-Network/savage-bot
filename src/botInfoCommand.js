@@ -48,7 +48,7 @@ async function handleBotInfo(interaction, startedAtMs) {
     '**Créditos** · desenhar · henqks · zrwfa';
 
   const container = new ContainerBuilder()
-    .setAccentColor(config.ticketEmbedColor())
+    .setAccentColor(config.embedAccentColor())
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(text))
     .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
     .addTextDisplayComponents(

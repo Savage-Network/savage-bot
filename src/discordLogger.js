@@ -33,6 +33,74 @@ const MAX_DESC = 3900;
 
 const V2 = MessageFlags.IsComponentsV2;
 
+/** Nomes técnicos da API → texto legível (auditoria). */
+const AUDIT_ACTION_PT = {
+  GuildUpdate: 'Servidor editado',
+  ChannelCreate: 'Canal criado',
+  ChannelUpdate: 'Canal editado',
+  ChannelDelete: 'Canal apagado',
+  ChannelOverwriteCreate: 'Permissões do canal criadas',
+  ChannelOverwriteUpdate: 'Permissões do canal editadas',
+  ChannelOverwriteDelete: 'Permissões do canal removidas',
+  MemberKick: 'Membro expulso',
+  MemberPrune: 'Membros removidos (prune)',
+  MemberBanAdd: 'Membro banido',
+  MemberBanRemove: 'Banimento revogado',
+  MemberUpdate: 'Membro editado',
+  MemberRoleUpdate: 'Cargos do membro alterados',
+  MemberMove: 'Membro movido de canal de voz',
+  MemberDisconnect: 'Membro desligado da voz',
+  BotAdd: 'Bot adicionado ao servidor',
+  RoleCreate: 'Cargo criado',
+  RoleUpdate: 'Cargo editado',
+  RoleDelete: 'Cargo apagado',
+  InviteCreate: 'Convite criado',
+  InviteUpdate: 'Convite editado',
+  InviteDelete: 'Convite apagado',
+  WebhookCreate: 'Webhook criado',
+  WebhookUpdate: 'Webhook editado',
+  WebhookDelete: 'Webhook apagado',
+  EmojiCreate: 'Emoji criado',
+  EmojiUpdate: 'Emoji editado',
+  EmojiDelete: 'Emoji apagado',
+  MessageDelete: 'Mensagem apagada (auditoria)',
+  MessageBulkDelete: 'Mensagens apagadas em massa',
+  MessagePin: 'Mensagem fixada',
+  MessageUnpin: 'Mensagem desafixada',
+  IntegrationCreate: 'Integração criada',
+  IntegrationUpdate: 'Integração editada',
+  IntegrationDelete: 'Integração removida',
+  StageInstanceCreate: 'Palco criado',
+  StageInstanceUpdate: 'Palco editado',
+  StageInstanceDelete: 'Palco apagado',
+  StickerCreate: 'Sticker criado',
+  StickerUpdate: 'Sticker editado',
+  StickerDelete: 'Sticker apagado',
+  ThreadCreate: 'Tópico criado',
+  ThreadUpdate: 'Tópico editado',
+  ThreadDelete: 'Tópico apagado',
+  ApplicationCommandPermissionUpdate: 'Permissões de comando alteradas',
+  AutoModerationRuleCreate: 'Regra de AutoMod criada',
+  AutoModerationRuleUpdate: 'Regra de AutoMod editada',
+  AutoModerationRuleDelete: 'Regra de AutoMod apagada',
+  AutoModerationBlockMessage: 'Mensagem bloqueada (AutoMod)',
+  AutoModerationFlagToChannel: 'Mensagem sinalizada (AutoMod)',
+  AutoModerationUserCommunicationDisabled: 'Utilizador silenciado (AutoMod)',
+};
+
+const TARGET_TYPE_PT = {
+  Guild: 'Servidor',
+  Channel: 'Canal',
+  User: 'Utilizador',
+  Role: 'Cargo',
+  Invite: 'Convite',
+  Webhook: 'Webhook',
+  Emoji: 'Emoji',
+  Message: 'Mensagem',
+  Integration: 'Integração',
+  Unknown: 'Desconhecido',
+};
+
 let sendChain = Promise.resolve();
 
 function shouldLogGuild(guild) {
@@ -44,8 +112,8 @@ function shouldLogGuild(guild) {
 
 function truncate(str, max = MAX_FIELD) {
   const s = String(str ?? '');
-  if (s.length <= max) return s;
-  return s.slice(0, max - 3) + '...';
+  if (s.length > max) return s.slice(0, max - 3) + '...';
+  return s;
 }
 
 function enqueueSend(client, buildContainer) {
@@ -61,7 +129,7 @@ function enqueueSend(client, buildContainer) {
       await ch.send({ flags: V2, components: [container] }).catch((e) => {
         console.error('[discordLog] Falha ao enviar:', e?.message || e);
       });
-      await new Promise((r) => setTimeout(r, 350));
+      await new Promise((r) => setTimeout(r, 250));
     })
     .catch(() => {});
   return sendChain;
@@ -72,6 +140,16 @@ function resolveAuditActionName(action) {
     if (v === action && Number.isNaN(Number(k))) return k;
   }
   return `Action_${action}`;
+}
+
+function auditActionLabelPt(actionKey) {
+  return AUDIT_ACTION_PT[actionKey] || actionKey.replace(/([A-Z])/g, ' $1').trim();
+}
+
+function targetTypeLabelPt(t) {
+  if (t == null) return '—';
+  const s = String(t);
+  return TARGET_TYPE_PT[s] || s;
 }
 
 function formatTarget(entry) {
@@ -143,28 +221,37 @@ function formatExtra(entry) {
 }
 
 function buildAuditContainer(entry, guild, executorDisplay) {
-  const actionName = resolveAuditActionName(entry.action);
+  const actionKey = resolveAuditActionName(entry.action);
+  const actionPt = auditActionLabelPt(actionKey);
   const exec =
     executorDisplay ??
     (entry.executorId ? `\`${entry.executorId}\`` : '—');
 
-  let main =
-    `## 📋 Auditoria · ${actionName}\n\n` +
-    `**Tipo:** ${entry.actionType} · **Alvo:** ${entry.targetType}\n\n` +
-    `**Executor** · ${truncate(exec, MAX_FIELD)}\n` +
-    `**Alvo** · ${truncate(formatTarget(entry), MAX_FIELD)}`;
+  const lines = [
+    `-# Registo oficial do Discord: moderador/ação e alvo (ban, cargos, canais, etc.).`,
+    '',
+    `**Ação** · ${actionPt}`,
+    `_${actionKey}_ · tipo API: \`${entry.actionType}\` · alvo: **${targetTypeLabelPt(entry.targetType)}**`,
+    '',
+    `**Quem executou** · ${truncate(exec, MAX_FIELD)}`,
+    `**Alvo** · ${truncate(formatTarget(entry), MAX_FIELD)}`,
+  ];
 
   const ch = formatChanges(entry.changes);
   if (ch && ch !== '—') {
-    main += `\n\n**Alterações**\n${ch}`;
+    lines.push('', '**Alterações**', ch);
   }
 
   const ex = formatExtra(entry);
-  if (ex) main += `\n\n**Extra**\n${truncate(ex, MAX_FIELD)}`;
+  if (ex) {
+    lines.push('', '**Extra**', truncate(ex, MAX_FIELD));
+  }
 
   if (entry.reason) {
-    main += `\n\n**Motivo**\n${truncate(entry.reason, MAX_FIELD)}`;
+    lines.push('', '**Motivo declarado**', truncate(entry.reason, MAX_FIELD));
   }
+
+  const main = `## Registo de auditoria\n\n${lines.join('\n')}`;
 
   return new ContainerBuilder()
     .setAccentColor(LOG_COLOR_AUDIT)
@@ -172,7 +259,7 @@ function buildAuditContainer(entry, guild, executorDisplay) {
     .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        footerTimestampLine(footer({ text: guild.name }).text)
+        footerTimestampLine(footer({ text: `${guild.name} · auditoria` }).text)
       )
     );
 }
@@ -197,8 +284,11 @@ function startDiscordLogging(client) {
     if (!shouldLogGuild(member.guild)) return;
     enqueueSend(client, () => {
       const avatarUrl = member.user.displayAvatarURL({ size: 128 });
+      const foot = footerTimestampLine(footer({ text: 'Membros · entrada' }).text);
       const body =
-        `## ➕ Membro entrou\n\n${member.user.tag} (\`${member.user.id}\`)\n\n` +
+        `## Membros · nova entrada\n` +
+        `-# Alguém acabou de entrar no servidor.\n\n` +
+        `**Utilizador** · ${member.user.tag} (\`${member.user.id}\`)\n` +
         `**Conta criada** · <t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`;
       const section = new SectionBuilder()
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(body))
@@ -211,31 +301,29 @@ function startDiscordLogging(client) {
         .setAccentColor(LOG_COLOR_MEMBER)
         .addSectionComponents(section)
         .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(footerTimestampLine(footer().text))
-        );
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(foot));
     });
   });
 
   client.on('guildMemberRemove', (member) => {
     if (!shouldLogGuild(member.guild)) return;
     enqueueSend(client, () => {
+      const foot = footerTimestampLine(footer({ text: 'Membros · saída' }).text);
       const text =
-        '## ➖ Membro saiu\n\n' +
-        `${member.user.tag} (\`${member.user.id}\`)\n\n` +
+        '## Membros · saída\n' +
+        '-# Alguém saiu, foi expulso ou banido (ou a conta foi apagada).\n\n' +
+        `**Utilizador** · ${member.user.tag} (\`${member.user.id}\`)\n` +
         `**Entrou no servidor** · ${
           member.joinedAt
             ? `<t:${Math.floor(member.joinedAt.getTime() / 1000)}:R>`
             : '—'
-        }\n\n` +
-        `**Cargos** · ${truncate(member.roles.cache.map((r) => r.name).join(', ') || '—', MAX_FIELD)}`;
+        }\n` +
+        `**Cargos antes de sair** · ${truncate(member.roles.cache.map((r) => r.name).join(', ') || '—', MAX_FIELD)}`;
       return new ContainerBuilder()
         .setAccentColor(LOG_COLOR_LEAVE)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(text))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(footerTimestampLine(footer().text))
-        );
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(foot));
     });
   });
 
@@ -249,36 +337,32 @@ function startDiscordLogging(client) {
     const authorTag = newMsg.author?.tag || 'Desconhecido';
     const iconUrl = newMsg.author?.displayAvatarURL({ size: 64 });
     enqueueSend(client, () => {
+      const foot = footerTimestampLine(footer({ text: 'Mensagens · edição' }).text);
       const main =
-        `## ✏️ Mensagem editada\n\n` +
-        `**${authorTag}**\n\n` +
+        `## Mensagens · mensagem editada\n` +
+        `-# O texto (ou anexos visíveis) de uma mensagem foi alterado.\n\n` +
+        `**Autor** · ${authorTag}\n` +
         `**Canal** · ${newMsg.channel}\n` +
         `**ID da mensagem** · \`${newMsg.id}\`\n\n` +
         `**Antes**\n${truncate(oldC, MAX_FIELD)}\n\n` +
         `**Depois**\n${truncate(newC, MAX_FIELD)}`;
-      let c = new ContainerBuilder()
-        .setAccentColor(LOG_COLOR_MSG_EDIT)
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(main));
       if (iconUrl) {
         const section = new SectionBuilder()
           .addTextDisplayComponents(new TextDisplayBuilder().setContent(main))
           .setThumbnailAccessory(
             new ThumbnailBuilder().setURL(iconUrl).setDescription(authorTag)
           );
-        c = new ContainerBuilder()
+        return new ContainerBuilder()
           .setAccentColor(LOG_COLOR_MSG_EDIT)
           .addSectionComponents(section)
           .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
-          .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(footerTimestampLine(footer().text))
-          );
-        return c;
+          .addTextDisplayComponents(new TextDisplayBuilder().setContent(foot));
       }
-      return c
+      return new ContainerBuilder()
+        .setAccentColor(LOG_COLOR_MSG_EDIT)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(main))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(footerTimestampLine(footer().text))
-        );
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(foot));
     });
   });
 
@@ -289,12 +373,14 @@ function startDiscordLogging(client) {
     const authorTag = message.author?.tag || 'Desconhecido';
     const iconUrl = message.author?.displayAvatarURL({ size: 64 });
     enqueueSend(client, () => {
+      const foot = footerTimestampLine(footer({ text: 'Mensagens · apagada' }).text);
       const main =
-        '## 🗑️ Mensagem excluída\n\n' +
-        `**${authorTag}**\n\n` +
+        '## Mensagens · mensagem apagada\n' +
+        '-# Uma mensagem deixou de existir neste canal (apagada por utilizador, mod ou bot).\n\n' +
+        `**Autor** · ${authorTag}\n` +
         `**Canal** · ${message.channel}\n` +
         `**ID** · \`${message.id}\`\n\n` +
-        `**Conteúdo**\n${truncate(content, MAX_FIELD)}`;
+        `**Conteúdo conhecido**\n${truncate(content, MAX_FIELD)}`;
       if (iconUrl) {
         const section = new SectionBuilder()
           .addTextDisplayComponents(new TextDisplayBuilder().setContent(main))
@@ -305,17 +391,13 @@ function startDiscordLogging(client) {
           .setAccentColor(LOG_COLOR_MSG_DEL)
           .addSectionComponents(section)
           .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
-          .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(footerTimestampLine(footer().text))
-          );
+          .addTextDisplayComponents(new TextDisplayBuilder().setContent(foot));
       }
       return new ContainerBuilder()
         .setAccentColor(LOG_COLOR_MSG_DEL)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(main))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(footerTimestampLine(footer().text))
-        );
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(foot));
     });
   });
 
@@ -323,16 +405,17 @@ function startDiscordLogging(client) {
     const first = messages.first();
     if (!first?.guild || !shouldLogGuild(first.guild)) return;
     enqueueSend(client, () => {
+      const foot = footerTimestampLine(footer({ text: 'Mensagens · limpeza em massa' }).text);
       const text =
-        '## 🗑️ Mensagens excluídas em massa\n\n' +
-        `**${messages.size}** mensagens em ${first.channel}`;
+        '## Mensagens · apagadas em massa\n' +
+        '-# Várias mensagens foram removidas de uma vez (mod, bot ou limpeza nativa).\n\n' +
+        `**Quantidade** · **${messages.size}** mensagens\n` +
+        `**Canal** · ${first.channel}`;
       return new ContainerBuilder()
         .setAccentColor(LOG_COLOR_MSG_DEL)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(text))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(footerTimestampLine(footer().text))
-        );
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(foot));
     });
   });
 
@@ -343,34 +426,48 @@ function startDiscordLogging(client) {
 
     const uid = member.user.tag;
     let title;
+    let hint;
     let detail = '';
 
     if (!oldS.channelId && newS.channelId) {
-      title = '🔊 Entrou na call';
-      detail = newS.channel ? `${newS.channel.name} (\`${newS.channel.id}\`)` : '';
+      title = 'Voz · entrou num canal de voz';
+      hint = 'O utilizador ligou o microfone/entrada a um canal de voz.';
+      detail = newS.channel
+        ? `**Canal** · ${newS.channel.name} (\`${newS.channel.id}\`)`
+        : '';
     } else if (oldS.channelId && !newS.channelId) {
-      title = '🔇 Saiu da call';
-      detail = oldS.channel ? `${oldS.channel.name}` : '';
+      title = 'Voz · saiu da chamada';
+      hint = 'O utilizador desligou-se do canal de voz.';
+      detail = oldS.channel ? `**Último canal** · ${oldS.channel.name}` : '';
     } else if (oldS.channelId !== newS.channelId && newS.channelId) {
-      title = '🔀 Mudou de canal de voz';
-      detail = `${oldS.channel || '?'} → ${newS.channel || '?'}`;
+      title = 'Voz · mudou de canal';
+      hint = 'O utilizador mudou de um canal de voz para outro.';
+      const from = oldS.channel ? oldS.channel.name : '?';
+      const to = newS.channel ? newS.channel.name : '?';
+      detail = `**De** · ${from}\n**Para** · ${to}`;
     } else if (oldS.mute !== newS.mute || oldS.deaf !== newS.deaf) {
-      title = '🔇 Estado de voz';
-      detail = `mute: ${newS.mute} · deaf: ${newS.deaf} · stream: ${newS.streaming}`;
+      title = 'Voz · estado (mute / surdo / stream)';
+      hint = 'Alteração ao estado de microfone, som ou transmissão.';
+      detail =
+        `**Microfone mutado** · ${newS.mute ? 'sim' : 'não'}\n` +
+        `**Som desligado (deaf)** · ${newS.deaf ? 'sim' : 'não'}\n` +
+        `**A transmitir** · ${newS.streaming ? 'sim' : 'não'}`;
     } else {
       return;
     }
 
     enqueueSend(client, () => {
+      const foot = footerTimestampLine(footer({ text: 'Voz' }).text);
       const text =
-        `## ${title}\n\n` + `**${uid}** (\`${member.id}\`)\n${detail}`;
+        `## ${title}\n` +
+        `-# ${hint}\n\n` +
+        `**Utilizador** · ${uid} (\`${member.id}\`)\n` +
+        (detail ? `${detail}` : '');
       return new ContainerBuilder()
         .setAccentColor(LOG_COLOR_VOICE)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(text))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(footerTimestampLine(footer().text))
-        );
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(foot));
     });
   });
 
@@ -382,18 +479,18 @@ function startDiscordLogging(client) {
     const sub = interaction.options?.getSubcommand(false);
     const full = sub ? `${cmd} ${sub}` : cmd;
     enqueueSend(client, () => {
+      const foot = footerTimestampLine(footer({ text: 'Comandos · slash' }).text);
       const text =
-        '## ⌨️ Comando\n\n' +
-        `**${full}**\n\n` +
-        `**Usuário** · ${user} (\`${interaction.user.id}\`)\n` +
-        `**Canal** · ${interaction.channel || '—'}`;
+        '## Comandos · slash usado\n' +
+        '-# Alguém executou um comando de barra neste servidor.\n\n' +
+        `**Comando** · \`${full}\`\n` +
+        `**Quem** · ${user} (\`${interaction.user.id}\`)\n` +
+        `**Onde** · ${interaction.channel || '—'}`;
       return new ContainerBuilder()
         .setAccentColor(LOG_COLOR_CMD)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(text))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(footerTimestampLine(footer().text))
-        );
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(foot));
     });
   });
 
@@ -405,11 +502,13 @@ function startDiscordLogging(client) {
       const tag = message.author?.tag || '?';
       const iconUrl = message.author?.displayAvatarURL({ size: 64 });
       enqueueSend(client, () => {
+        const foot = footerTimestampLine(footer({ text: 'Mensagens · nova' }).text);
         const main =
-          '## 💬 Mensagem nova\n\n' +
-          `**${tag}**\n\n` +
+          '## Mensagens · mensagem nova\n' +
+          '-# Nova mensagem de texto (ou com anexos) neste canal — útil para auditoria de conversas.\n\n' +
+          `**Autor** · ${tag}\n` +
           `**Canal** · ${message.channel}\n\n` +
-          `**Texto**\n${truncate(text, MAX_FIELD)}`;
+          `**Conteúdo**\n${truncate(text, MAX_FIELD)}`;
         if (iconUrl) {
           const section = new SectionBuilder()
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(main))
@@ -420,17 +519,13 @@ function startDiscordLogging(client) {
             .setAccentColor(LOG_COLOR_MSG)
             .addSectionComponents(section)
             .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
-            .addTextDisplayComponents(
-              new TextDisplayBuilder().setContent(footerTimestampLine(footer().text))
-            );
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(foot));
         }
         return new ContainerBuilder()
           .setAccentColor(LOG_COLOR_MSG)
           .addTextDisplayComponents(new TextDisplayBuilder().setContent(main))
           .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
-          .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(footerTimestampLine(footer().text))
-          );
+          .addTextDisplayComponents(new TextDisplayBuilder().setContent(foot));
       });
     });
   }
@@ -443,16 +538,19 @@ function startDiscordLogging(client) {
         ? `<:${reaction.emoji.name}:${reaction.emoji.id}>`
         : reaction.emoji.name;
       enqueueSend(client, () => {
+        const foot = footerTimestampLine(footer({ text: 'Reações · adicionada' }).text);
         const text =
-          '## ➕ Reação adicionada\n\n' +
-          `${user.tag} → ${emoji} em ${reaction.message.channel}\nMensagem: \`${reaction.message.id}\``;
+          '## Reações · emoji adicionado\n' +
+          '-# Alguém reagiu a uma mensagem com um emoji.\n\n' +
+          `**Quem reagiu** · ${user.tag} (\`${user.id}\`)\n` +
+          `**Emoji** · ${emoji}\n` +
+          `**Canal** · ${reaction.message.channel}\n` +
+          `**ID da mensagem** · \`${reaction.message.id}\``;
         return new ContainerBuilder()
           .setAccentColor(LOG_COLOR_REACTION)
           .addTextDisplayComponents(new TextDisplayBuilder().setContent(text))
           .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
-          .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(footerTimestampLine(footer().text))
-          );
+          .addTextDisplayComponents(new TextDisplayBuilder().setContent(foot));
       });
     });
 
@@ -462,16 +560,19 @@ function startDiscordLogging(client) {
         ? `<:${reaction.emoji.name}:${reaction.emoji.id}>`
         : reaction.emoji.name;
       enqueueSend(client, () => {
+        const foot = footerTimestampLine(footer({ text: 'Reações · removida' }).text);
         const text =
-          '## ➖ Reação removida\n\n' +
-          `${user.tag} → ${emoji} em ${reaction.message.channel}\nMensagem: \`${reaction.message.id}\``;
+          '## Reações · emoji removido\n' +
+          '-# Alguém tirou a própria reação (ou foi removida por mod/bot).\n\n' +
+          `**Quem** · ${user.tag} (\`${user.id}\`)\n` +
+          `**Emoji** · ${emoji}\n` +
+          `**Canal** · ${reaction.message.channel}\n` +
+          `**ID da mensagem** · \`${reaction.message.id}\``;
         return new ContainerBuilder()
           .setAccentColor(LOG_COLOR_REACTION)
           .addTextDisplayComponents(new TextDisplayBuilder().setContent(text))
           .addSeparatorComponents(new SeparatorBuilder().setDivider(false))
-          .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(footerTimestampLine(footer().text))
-          );
+          .addTextDisplayComponents(new TextDisplayBuilder().setContent(foot));
       });
     });
   }

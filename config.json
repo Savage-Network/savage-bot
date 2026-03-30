@@ -1,30 +1,31 @@
 {
-  "_info": "SavageMC — token só no .env (DISCORD_TOKEN). Variáveis de ambiente sobrescrevem o JSON. Tickets: use o bloco \"ticket\" abaixo (ou chaves antigas ticket* na raiz).",
+  "_info": "SavageMC bot — DISCORD_TOKEN só no .env (nunca no JSON). Variáveis de ambiente sobrescrevem estas chaves. Secções: discord → visual → minecraft → stats/api → voz → logs → autorole → autoResponses → dev → canaisDEV.",
+
   "clientId": "1486849174321500291",
   "guildId": "1486476169770700883",
+
+  "embedColor": 43520,
+
   "mcHost": "savagemc.net",
   "mcPort": 25580,
   "mcPresenceIntervalMs": 45000,
   "mcStatusTimeoutMs": 15000,
   "mcEnableSRV": true,
+
   "statsSiteUrl": "https://stats.savagemc.net",
+  "savageApiBaseUrl": "https://savage-api-one.vercel.app",
+
   "voiceChannelId": "1486476177240752349",
   "voiceEnabled": false,
   "voiceReconnectIntervalMs": 30000,
-  "ticket": {
-    "panelChannelId": "1486476179052691510",
-    "categoryId": "1486476177240752350",
-    "staffRoleId": "1486476170202452090",
-    "logChannelId": "1486476179878969471",
-    "embedColor": 43520,
-    "panelBannerUrl": "https://cdn.discordapp.com/attachments/1483233538567438457/1487449776256581694/painelticket.png?ex=69c92f0e&is=69c7dd8e&hm=44a05995ad2ecd7556265b256458b214f205914694b0178ff176d877b21396fd&",
-    "panelFooterText": "-# savagemc.net"
-  },
+
   "discordLogChannelId": "1486476179878969468",
   "discordLogMessageCreate": false,
   "discordLogReactions": false,
   "discordLogBotMessages": false,
+
   "autoroleRoleId": "1486476170177417354",
+
   "autoResponses": [
     {
       "trigger": "qual o ip",
@@ -32,8 +33,11 @@
       "wholeWord": false
     }
   ],
+
   "devVoiceChannelId": "1486476177240752349",
   "devCommitChannelId": "1487244541806510100",
+  "repositoryUrl": null,
+
   "canaisDEV": [
     {
       "idDiscord": "1306748011476549715",
