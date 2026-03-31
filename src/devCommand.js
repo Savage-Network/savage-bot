@@ -204,7 +204,7 @@ async function handleDev(interaction, opts = {}) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const conn = await joinVoiceChannelById(interaction.client, vid, {
-      reconnectOnError: false,
+      joinReadyTimeoutMs: 90_000,
     });
 
     const ok = conn && conn.state.status === VoiceConnectionStatus.Ready;

@@ -159,7 +159,6 @@ function buildSafeConfigMarkdown() {
     `**savageApiBaseUrl** · ${config.savageApiBaseUrl()}`,
     `**embedAccentColor** · ${config.embedAccentColor()}`,
     `**voiceEnabled** · ${config.voiceEnabled()}`,
-    `**discordLogChannelId** · \`${config.discordLogChannelId() || '—'}\``,
     `**devCommitChannelId** · \`${config.devCommitChannelId() || '—'}\``,
     `**pteroLogChannelId** · \`${config.pteroLogChannelId() || '—'}\` — log de \`/dev ptero\``,
     `**pteroRoleId** · \`${config.pteroRoleId() || '—'}\` — se definido, só este cargo usa \`/dev ptero\` (senão \`canaisDEV\`)`,

@@ -35,12 +35,11 @@ async function handleHelp(interaction) {
     '`/dev config` — opções carregadas sem segredos\n' +
     '`/dev ptero` — energia (ligar/desligar/reiniciar) · `ptero-lista` · `ptero-info` · `ptero-ping` — [Pterodactyl](https://pterodactyl.io/)\n' +
     '`/dev projeto` — nome, versão e dependências do `package.json`\n' +
-    '`/dev voice` — bot na call (`devVoiceChannelId` / `voiceChannelId`)\n' +
+    '`/dev voice` — entra na call de dev (enfeite; sem reconexão automática)\n' +
     '`/dev anotar` — nota no teu canal (`idCanal` em `canaisDEV`)\n' +
     '`/dev commit` — modal → canal `devCommitChannelId`\n\n' +
     '### Automático (config)\n' +
-    '**Autorole** — cargo ao entrar: `autoroleRoleId` em `config.json` (ou `AUTOROLE_ROLE_ID`)\n' +
-    '**Palavras** — mensagens que disparam texto: lista `autoResponses` no JSON (ou `AUTO_RESPONSES_JSON`)';
+    '**Palavras** — respostas a frases: `autoResponses` no JSON (ou `AUTO_RESPONSES_JSON`)';
 
   const container = new ContainerBuilder()
     .setAccentColor(config.embedAccentColor())

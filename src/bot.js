@@ -18,9 +18,7 @@ const { handleHelp } = require('./helpCommand');
 const { handleServidor } = require('./serverCommand');
 const { handleMinecraft } = require('./minecraftCommand');
 const { handleBotInfo } = require('./botInfoCommand');
-const { startDiscordLogging } = require('./discordLogger');
 const { handleCanal } = require('./canalCommand');
-const { registerAutorole } = require('./autorole');
 const { registerAutoResponses } = require('./autoResponses');
 const { handleDev, handleDevCommitModal } = require('./devCommand');
 const { handlePteroAutocomplete } = require('./pteroPanel');
@@ -48,8 +46,6 @@ function createClient() {
       GatewayIntentBits.GuildMembers,
       GatewayIntentBits.GuildMessages,
       GatewayIntentBits.GuildVoiceStates,
-      GatewayIntentBits.GuildModeration,
-      GatewayIntentBits.GuildMessageReactions,
       GatewayIntentBits.MessageContent,
     ],
     partials: [
@@ -57,16 +53,13 @@ function createClient() {
       Partials.Message,
       Partials.User,
       Partials.GuildMember,
-      Partials.Reaction,
     ],
   });
 
-  registerAutorole(client);
   registerAutoResponses(client);
 
   client.once(Events.ClientReady, async () => {
     console.log(`[SavageMC] Ligado como ${client.user.tag}`);
-    startDiscordLogging(client);
     startMcPresence(client);
     if (config.voiceEnabled()) startVoiceWatch(client);
     startPteroStatePoller(client);
@@ -300,14 +293,30 @@ async function registerSlashCommands() {
   const clientId = config.clientId();
   const guildId = config.guildId();
 
-  if (guildId) {
-    await rest.put(Routes.applicationGuildCommands(clientId, guildId), {
-      body: commands,
-    });
-    console.log(`Comandos registrados no servidor (guild) ${guildId}.`);
-  } else {
-    await rest.put(Routes.applicationCommands(clientId), { body: commands });
-    console.log('Comandos registrados globalmente (até ~1 h para propagar).');
+  try {
+    if (guildId) {
+      await rest.put(Routes.applicationGuildCommands(clientId, guildId), {
+        body: commands,
+      });
+      console.log(`Comandos registrados no servidor (guild) ${guildId}.`);
+    } else {
+      await rest.put(Routes.applicationCommands(clientId), { body: commands });
+      console.log('Comandos registrados globalmente (até ~1 h para propagar).');
+    }
+  } catch (err) {
+    const code = err?.code ?? err?.rawError?.code;
+    if (code === 50001) {
+      const inviteUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&permissions=0&scope=bot%20applications.commands`;
+      console.error(
+        '\n[register] Discord API 50001 — Missing Access neste servidor.\n\n' +
+          'Causas comuns:\n' +
+          '  • O bot **não está** no servidor cujo ID está em `guildId` (config.json ou `GUILD_ID`).\n' +
+          '  • O `guildId` está **errado** (confirma: Modo desenvolvedor → servidor → Copiar ID).\n' +
+          '  • O convite foi feito **sem** o scope **applications.commands** (só com `bot` não chega para registar slash no guild).\n\n' +
+          `Convite com comandos (substitui se precisares de permissões):\n  ${inviteUrl}\n`
+      );
+    }
+    throw err;
   }
 }
 

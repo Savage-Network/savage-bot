@@ -131,11 +131,6 @@ module.exports = {
   /** Mantém o bot num canal de voz fixo. `false` desativa (não liga à call). */
   voiceEnabled: () => pickBool('voiceEnabled', 'VOICE_ENABLED', true),
 
-  voiceReconnectIntervalMs: () =>
-    pickNum('voiceReconnectIntervalMs', 'VOICE_RECONNECT_INTERVAL_MS', 30000, {
-      min: 5000,
-    }),
-
   /**
    * Cor de destaque (accent) dos containers V2 (decimal 0–16777215).
    * `EMBED_ACCENT_COLOR` ou `TICKET_EMBED_COLOR` (legado) no ambiente; `embedColor` em config.json.
@@ -155,21 +150,6 @@ module.exports = {
     if (n > 0xffffff) n = 0xffffff;
     return n;
   },
-
-  discordLogChannelId: () =>
-    pick('discordLogChannelId', 'DISCORD_LOG_CHANNEL_ID') || null,
-
-  discordLogMessageCreate: () =>
-    pickBool('discordLogMessageCreate', 'DISCORD_LOG_MESSAGE_CREATE', false),
-
-  discordLogReactions: () =>
-    pickBool('discordLogReactions', 'DISCORD_LOG_REACTIONS', false),
-
-  discordLogBotMessages: () =>
-    pickBool('discordLogBotMessages', 'DISCORD_LOG_BOT_MESSAGES', false),
-
-  /** Cargo atribuído automaticamente a novos membros (vazio = desativado). */
-  autoroleRoleId: () => pick('autoroleRoleId', 'AUTOROLE_ROLE_ID') || null,
 
   /**
    * Respostas automáticas por palavra/frase (estilo Loritta).

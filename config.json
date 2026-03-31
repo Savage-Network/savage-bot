@@ -1,8 +1,8 @@
 {
-  "_info": "SavageMC bot — DISCORD_TOKEN só no .env (nunca no JSON). Variáveis de ambiente sobrescrevem estas chaves. Secções: discord → visual → minecraft → stats/api → voz → logs → autorole → autoResponses → dev (pteroLogChannelId, pteroStatePollMs, pteroRoleId) → canaisDEV.",
+  "_info": "SavageMC bot — DISCORD_TOKEN só no .env. Secções: visual → minecraft → stats/api → voz → autoResponses → dev (ptero*, canaisDEV).",
 
   "clientId": "1486849174321500291",
-  "guildId": "1486476169770700883",
+  "guildId": "1484684007449956517",
 
   "embedColor": 43520,
 
@@ -15,16 +15,8 @@
   "statsSiteUrl": "https://stats.savagemc.net",
   "savageApiBaseUrl": "https://savage-api-one.vercel.app",
 
-  "voiceChannelId": "1486476177240752349",
-  "voiceEnabled": false,
-  "voiceReconnectIntervalMs": 30000,
-
-  "discordLogChannelId": "1486476179878969468",
-  "discordLogMessageCreate": false,
-  "discordLogReactions": false,
-  "discordLogBotMessages": false,
-
-  "autoroleRoleId": "1486476170177417354",
+  "voiceChannelId": "1488641031804289208",
+  "voiceEnabled": true,
 
   "autoResponses": [
     {
@@ -34,25 +26,25 @@
     }
   ],
 
-  "devVoiceChannelId": "1486476177240752349",
-  "devCommitChannelId": "1487244541806510100",
-  "pteroLogChannelId": "1488282735335440434",
-  "pteroRoleId": "1486476170219487397",
+  "devVoiceChannelId": "1488641031804289208",
+  "devCommitChannelId": "1488641241666027690",
+  "pteroLogChannelId": "1488638938498207937",
+  "pteroRoleId": "1485258174536618065",
   "pteroStatePollMs": 1,
   "repositoryUrl": null,
 
   "canaisDEV": [
     {
       "idDiscord": "1306748011476549715",
-      "idCanal": "1487186452532953159"
+      "idCanal": "1488641497002807507"
     },
     {
       "idDiscord": "769311943235469393",
-      "idCanal": "1487186471549931550"
+      "idCanal": "1488641600824410233"
     },
     {
       "idDiscord": "738094318497300500",
-      "idCanal": "1487186491313487913"
+      "idCanal": "1488641683192287414"
     }
   ]
 }
