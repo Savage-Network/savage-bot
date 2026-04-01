@@ -11,7 +11,13 @@ const {
 } = require('discord.js');
 const config = require('./config');
 const { startMcPresence, stopMcPresence } = require('./mcPresence');
-const { startVoiceWatch, stopVoiceWatch } = require('./voiceStay');
+const {
+  startVoiceWatch,
+  stopVoiceWatch,
+  onVoiceStateForStay,
+} = require('./voiceStay');
+const { initRadioPlayer, getRadioPlayer } = require('./radioPlayer');
+const { handleRadio, handleRadioAutocomplete } = require('./radioCommand');
 const { handleStatus } = require('./statusCommand');
 const { handlePing } = require('./pingCommand');
 const { handleHelp } = require('./helpCommand');
@@ -35,6 +41,7 @@ const chatCommandHandlers = {
   minecraft: (i) => handleMinecraft(i),
   botinfo: (i) => handleBotInfo(i, BOT_STARTED_AT_MS),
   canal: (i) => handleCanal(i),
+  radio: (i) => handleRadio(i),
   dev: (i) => handleDev(i, { botStartedAtMs: BOT_STARTED_AT_MS }),
   stats: (i) => handleStats(i),
 };
@@ -58,8 +65,13 @@ function createClient() {
 
   registerAutoResponses(client);
 
+  client.on('voiceStateUpdate', (oldState, newState) => {
+    if (config.voiceEnabled()) onVoiceStateForStay(client, oldState, newState);
+  });
+
   client.once(Events.ClientReady, async () => {
     console.log(`[SavageMC] Ligado como ${client.user.tag}`);
+    await initRadioPlayer(client);
     startMcPresence(client);
     if (config.voiceEnabled()) startVoiceWatch(client);
     startPteroStatePoller(client);
@@ -67,7 +79,15 @@ function createClient() {
 
   client.on('interactionCreate', async (interaction) => {
     try {
+      if (interaction.isButton() && interaction.customId.startsWith('radio_')) {
+        const { handleRadioButtons } = require('./radioCommand');
+        return await handleRadioButtons(interaction);
+      }
       if (interaction.isAutocomplete()) {
+        if (interaction.commandName === 'radio') {
+          const sub = interaction.options.getSubcommand(false);
+          if (sub === 'tocar') return await handleRadioAutocomplete(interaction);
+        }
         if (interaction.commandName === 'dev') {
           const sub = interaction.options.getSubcommand(false);
           if (sub === 'ptero' || sub === 'ptero-info') {
@@ -155,6 +175,55 @@ async function registerSlashCommands() {
     new SlashCommandBuilder()
       .setName('botinfo')
       .setDescription('Estatísticas do bot (uptime, memória, latência)')
+      .toJSON(),
+    new SlashCommandBuilder()
+      .setName('radio')
+      .setDescription('📻 Música na call — biblioteca local')
+      .setDMPermission(false)
+      .addSubcommand((s) =>
+        s.setName('painel').setDescription('⚡ Abrir o painel de controlo interativo (efémero)')
+      )
+      .addSubcommand((s) =>
+        s
+          .setName('tocar')
+          .setDescription('Tocar uma música da biblioteca local')
+          .addStringOption((o) =>
+            o
+              .setName('query')
+              .setDescription('Nome da música (use autocomplete para sugestões)')
+              .setRequired(true)
+              .setMaxLength(200)
+              .setAutocomplete(true)
+          )
+      )
+      .addSubcommand((s) =>
+        s.setName('biblioteca').setDescription('Ver todas as músicas disponíveis na biblioteca local')
+      )
+      .addSubcommand((s) =>
+        s.setName('pular').setDescription('Saltar para a próxima música aleatória')
+      )
+      .addSubcommand((s) =>
+        s.setName('parar').setDescription('Parar a reprodução')
+      )
+      .addSubcommand((s) =>
+        s
+          .setName('volume')
+          .setDescription('Volume (0–100%)')
+          .addIntegerOption((o) =>
+            o
+              .setName('valor')
+              .setDescription('Volume (0–100)')
+              .setRequired(true)
+              .setMinValue(0)
+              .setMaxValue(100)
+          )
+      )
+      .addSubcommand((s) =>
+        s.setName('historico').setDescription('Ver histórico de músicas tocadas')
+      )
+      .addSubcommand((s) =>
+        s.setName('limpar_cache').setDescription('Apagar histórico de músicas tocadas')
+      )
       .toJSON(),
     new SlashCommandBuilder()
       .setName('canal')

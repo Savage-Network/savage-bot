@@ -17,6 +17,7 @@
 
   "voiceChannelId": "1488641031804289208",
   "voiceEnabled": true,
+  "radioDefaultPlaylist": "https://open.spotify.com/playlist/7kcvJ5wIan9CqDDeeD1gD0?si=0cda966465bc45c9",
 
   "autoResponses": [
     {
@@ -30,7 +31,7 @@
   "devCommitChannelId": "1488641241666027690",
   "pteroLogChannelId": "1488638938498207937",
   "pteroRoleId": "1485258174536618065",
-  "pteroStatePollMs": 1,
+  "pteroStatePollMs": 60000,
   "repositoryUrl": null,
 
   "canaisDEV": [

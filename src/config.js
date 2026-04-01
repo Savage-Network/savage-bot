@@ -131,6 +131,9 @@ module.exports = {
   /** Mantém o bot num canal de voz fixo. `false` desativa (não liga à call). */
   voiceEnabled: () => pickBool('voiceEnabled', 'VOICE_ENABLED', true),
 
+  /** Playlist padrão para tocar quando a fila estiver vazia (24/7). */
+  radioDefaultPlaylist: () => pick('radioDefaultPlaylist', 'RADIO_DEFAULT_PLAYLIST', ''),
+
   /**
    * Cor de destaque (accent) dos containers V2 (decimal 0–16777215).
    * `EMBED_ACCENT_COLOR` ou `TICKET_EMBED_COLOR` (legado) no ambiente; `embedColor` em config.json.

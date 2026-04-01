@@ -1,9 +1,8 @@
 'use strict';
 
 /**
- * Coloca o bot num canal de voz como **enfeite** (aparece na lista de membros em call).
- * Uma ligação ao arranque (ou via `/dev voice`) — **sem** reconexão automática, sem forçar
- * reentrada se alguém mover o bot, para não haver sair/entrar em loop.
+ * Mantém o bot **sempre** no canal de voz configurado (mesma stack que o discord-player / discord-voip).
+ * Reconexão insistente em quedas, erros, gateway e se o bot for movido/saído da call.
  */
 
 const {
@@ -14,7 +13,20 @@ const {
 } = require('@discordjs/voice');
 const config = require('./config');
 
-const JOIN_READY_TIMEOUT_MS = 120_000;
+const JOIN_READY_TIMEOUT_MS = 600_000;
+const RECONNECT_DELAY_MS = 250;
+
+let reconnectTimeout = null;
+let gatewayListenersAttached = false;
+let joinInFlight = false;
+
+function scheduleReconnect(client, delayMs = RECONNECT_DELAY_MS) {
+  if (reconnectTimeout) clearTimeout(reconnectTimeout);
+  reconnectTimeout = setTimeout(() => {
+    reconnectTimeout = null;
+    tryJoin(client);
+  }, delayMs);
+}
 
 function isJoinInProgress(conn) {
   const s = conn?.state?.status;
@@ -41,7 +53,6 @@ async function isStableInTargetChannel(client, channel) {
 }
 
 /**
- * Liga o bot a um canal de voz (uma tentativa; sem watchdog de reconexão).
  * @param {{ joinReadyTimeoutMs?: number }} [opts]
  */
 async function joinVoiceChannelById(client, channelId, opts = {}) {
@@ -81,7 +92,8 @@ async function joinVoiceChannelById(client, channelId, opts = {}) {
     }
     if (same.state.status === VoiceConnectionStatus.Disconnected) {
       try {
-        if (same.rejoin()) {
+        const requested = same.rejoin();
+        if (requested) {
           await entersState(same, VoiceConnectionStatus.Ready, joinTimeout);
           return same;
         }
@@ -104,20 +116,50 @@ async function joinVoiceChannelById(client, channelId, opts = {}) {
     selfMute: false,
   });
 
+  connection.on('error', (err) => {
+    console.error('[voz] Erro na ligação:', err?.message || err);
+    scheduleReconnect(client, RECONNECT_DELAY_MS);
+  });
+
+  connection.on('stateChange', (oldState, newState) => {
+    if (newState.status === VoiceConnectionStatus.Disconnected) {
+      console.warn('[voz] Desconectado — a reconectar…');
+      try {
+        if (connection.state.status === VoiceConnectionStatus.Disconnected) {
+          const ok = connection.rejoin();
+          if (!ok) scheduleReconnect(client, RECONNECT_DELAY_MS);
+        }
+      } catch {
+        scheduleReconnect(client, RECONNECT_DELAY_MS);
+      }
+    }
+  });
+
   try {
     await entersState(connection, VoiceConnectionStatus.Ready, joinTimeout);
   } catch (e) {
-    console.warn('[voz] Não entrou na call:', e?.message || e);
+    console.warn('[voz] Timeout / falha ao ficar Ready:', e?.message || e);
+    try {
+      const r = connection.rejoin();
+      if (r) {
+        await entersState(connection, VoiceConnectionStatus.Ready, joinTimeout);
+        return connection;
+      }
+    } catch {
+      /* ignore */
+    }
     try {
       connection.destroy();
     } catch {
       /* ignore */
     }
-    return null;
+    scheduleReconnect(client, RECONNECT_DELAY_MS);
   }
 
   return connection;
 }
+
+const { getRadioPlayer, AudioPlayerStatus } = require('./radioPlayer');
 
 async function connectVoice(client) {
   const channelId = config.voiceChannelId();
@@ -125,13 +167,64 @@ async function connectVoice(client) {
   return joinVoiceChannelById(client, channelId);
 }
 
+async function tryJoin(client) {
+  if (joinInFlight) return;
+
+  // Se o rádio estiver ativo e já estiver a tratar da ligação, respeitamos.
+  const audioPlayer = getRadioPlayer();
+  if (audioPlayer) {
+    const guildId = config.guildId(); 
+    const conn = getVoiceConnection(guildId);
+    if (conn && conn.state.status === VoiceConnectionStatus.Ready && audioPlayer.state.status === AudioPlayerStatus.Playing) {
+      // Se já temos uma ligação pronta e o rádio está a tocar, não interferimos.
+      return;
+    }
+  }
+
+  joinInFlight = true;
+  try {
+    await connectVoice(client);
+  } catch (e) {
+    console.error('[voz] Falha ao ligar:', e?.message || e);
+    scheduleReconnect(client, RECONNECT_DELAY_MS);
+  } finally {
+    joinInFlight = false;
+  }
+}
+
+/**
+ * Monitorização de eventos de estado de voz para garantir que o bot permanece no canal fixo.
+ */
+function onVoiceStateForStay(client, oldState, newState) {
+  if (newState.member?.id !== client.user?.id) return;
+  const target = config.voiceChannelId();
+  if (!target) return;
+  if (newState.channelId === target) return;
+  console.warn('[voz] Bot saiu ou foi movido da call fixa — a reconectar…');
+  scheduleReconnect(client, RECONNECT_DELAY_MS);
+}
+
+function attachGatewayGuards(client) {
+  if (gatewayListenersAttached) return;
+  gatewayListenersAttached = true;
+  client.on('shardResume', (shardId, replayed) => {
+    if (!config.voiceChannelId()) return;
+    console.warn(`[voz] Gateway retomado (shard ${shardId}) — a garantir call…`);
+    scheduleReconnect(client, RECONNECT_DELAY_MS);
+  });
+}
+
 function startVoiceWatch(client) {
   if (!config.voiceChannelId()) return;
-  connectVoice(client).catch((e) => console.warn('[voz]', e?.message || e));
+  attachGatewayGuards(client);
+  tryJoin(client);
 }
 
 function stopVoiceWatch() {
-  /* Sem timers; o processo encerra a voz com client.destroy(). */
+  if (reconnectTimeout) {
+    clearTimeout(reconnectTimeout);
+    reconnectTimeout = null;
+  }
 }
 
 module.exports = {
@@ -139,4 +232,6 @@ module.exports = {
   joinVoiceChannelById,
   startVoiceWatch,
   stopVoiceWatch,
+  tryJoin,
+  onVoiceStateForStay,
 };

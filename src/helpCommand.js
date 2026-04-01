@@ -23,7 +23,8 @@ async function handleHelp(interaction) {
     '`/minecraft` — endereço e dados rápidos para conectar\n' +
     '`/servidor` — info deste Discord (membros, boost, etc.)\n' +
     '`/stats` — links do [SavageMC STATS](https://stats.savagemc.net/) (opcional: `nick`)\n' +
-    '`/botinfo` — uptime, memória e latência do bot\n\n' +
+    '`/botinfo` — uptime, memória e latência do bot\n' +
+    '`/radio` — música (YouTube/Spotify): `tocar`, `playlist` (cache de faixas já tocadas), `historico`, `limpar_cache`, `fila`, `pular`, `volume`, `parar` — **`voiceChannelId`** + FFmpeg; Spotify opcional\n\n' +
     '### Moderação (canal)\n' +
     '`/canal bloquear` — lock: @everyone não envia mensagens (precisa **Gerir canais**)\n' +
     '`/canal desbloquear` — unlock: reverte o bloqueio\n' +

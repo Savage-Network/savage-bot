@@ -7,7 +7,7 @@ const {
   TextInputStyle,
   ActionRowBuilder,
 } = require('discord.js');
-const { VoiceConnectionStatus } = require('@discordjs/voice');
+const { VoiceConnectionStatus } = require('discord-voip');
 const config = require('./config');
 const { joinVoiceChannelById } = require('./voiceStay');
 const { footer } = require('./embedCopyright');

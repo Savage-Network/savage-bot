@@ -83,27 +83,39 @@ function textoJogadoresOnline(online) {
   return `${n} jogadores online.`;
 }
 
+const { getCurrentTrackData, getRadioPlayer, AudioPlayerStatus } = require('./radioPlayer');
+
 function startMcPresence(client) {
   if (presenceTimer) clearInterval(presenceTimer);
 
   async function tick() {
     if (!client.user) return;
     const s = await fetchMcStatus();
-    let name;
-    if (s.ok) {
-      name = `SavageMC · ${textoJogadoresOnline(s.online)}`;
-    } else {
-      name = 'SavageMC · servidor offline.';
+    let mcName = s.ok ? `SavageMC · ${textoJogadoresOnline(s.online)}` : 'SavageMC · servidor offline.';
+
+    let activityName = mcName;
+    let activityType = ActivityType.Watching;
+
+    // Se estiver a tocar rádio, mostramos no status
+    if (config.voiceEnabled()) {
+      const radio = getRadioPlayer();
+      const track = getCurrentTrackData();
+      if (radio && radio.state.status === AudioPlayerStatus.Playing && track) {
+        activityName = `Ouvindo: ${track.title} — ${track.artist} | ${mcName}`;
+        activityType = ActivityType.Listening;
+      }
     }
-    if (name.length > 128) name = name.slice(0, 125) + '...';
-    if (name === lastPresenceActivityName) return;
-    lastPresenceActivityName = name;
+
+    if (activityName.length > 128) activityName = activityName.slice(0, 125) + '...';
+    if (activityName === lastPresenceActivityName) return;
+    lastPresenceActivityName = activityName;
+
     try {
       client.user.setPresence({
         activities: [
           {
-            name,
-            type: ActivityType.Watching,
+            name: activityName,
+            type: activityType,
           },
         ],
         status: 'online',
